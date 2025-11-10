@@ -30,3 +30,12 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Integration test files
+tmp/
+
+# Binary
+terraform-provider-contextforge
+
+# Goreleaser files
+dist/
