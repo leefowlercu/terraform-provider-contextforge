@@ -89,17 +89,71 @@ else
 fi
 echo ""
 
-echo "📊 Gateway Information:"
-echo "   Address: http://localhost:8000"
+echo "📊 Test Environment Information:"
+echo "   ContextForge Address: http://localhost:8000"
+echo "   ContextForge PID: $GATEWAY_PID"
 echo "   Admin Email: admin@test.local"
 echo "   Admin Password: testpassword123"
-echo "   PID: $GATEWAY_PID"
-echo "   Token File: $PROJECT_ROOT/tmp/contextforge-test-token.txt"
+echo "   JWT Token File: $PROJECT_ROOT/tmp/contextforge-test-token.txt"
+echo "   MCP Time Server: http://localhost:8002"
+echo "   Time Server PID File: $PROJECT_ROOT/tmp/time-server.pid"
+echo "   Test Gateway ID File: $PROJECT_ROOT/tmp/contextforge-test-gateway-id.txt"
 echo ""
 
 # Get version info
-echo "🔍 Gateway Version:"
-curl -s -u admin@test.local:testpassword123 http://localhost:8000/version | jq . || echo "Version endpoint unavailable"
+echo "🔍 Gateway Version: $(curl -s -u admin@test.local:testpassword123 http://localhost:8000/version | jq -r .app.version || echo \"Version endpoint unavailable\")"
+echo ""
+
+# Start MCP time server for gateway testing
+echo "⏰ Starting MCP time server..."
+uvx --from mcp-contextforge-gateway python3 -m mcpgateway.translate \
+  --stdio "uvx mcp-server-time --local-timezone=UTC" \
+  --port 8002 > "$PROJECT_ROOT/tmp/time-server.log" 2>&1 &
+TIME_SERVER_PID=$!
+echo $TIME_SERVER_PID > "$PROJECT_ROOT/tmp/time-server.pid"
+
+echo "⏳ Waiting for MCP time server to be ready..."
+
+# Wait for time server to start (no health endpoint, so use fixed delay)
+sleep 5
+
+# Verify process is still running
+if ! ps -p $TIME_SERVER_PID > /dev/null 2>&1; then
+  echo "❌ Time server process died"
+  cat "$PROJECT_ROOT/tmp/time-server.log"
+  kill $GATEWAY_PID 2>/dev/null || true
+  exit 1
+fi
+
+echo "✅ MCP time server is ready!"
+echo ""
+
+# Create test gateway pointing to time server
+echo "🔧 Creating test gateway..."
+GATEWAY_RESPONSE=$(curl -s -X POST http://localhost:8000/gateways \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "test-time-server",
+    "url": "http://localhost:8002/sse",
+    "description": "Test gateway for integration tests",
+    "transport": "SSE"
+  }')
+
+if [ $? -eq 0 ]; then
+  GATEWAY_ID=$(echo "$GATEWAY_RESPONSE" | jq -r '.id // empty')
+
+  if [ -n "$GATEWAY_ID" ] && [ "$GATEWAY_ID" != "null" ]; then
+    echo "$GATEWAY_ID" > "$PROJECT_ROOT/tmp/contextforge-test-gateway-id.txt"
+    echo "✅ Test gateway created successfully"
+    echo "   Gateway ID: $GATEWAY_ID"
+  else
+    echo "⚠️  Failed to extract gateway ID from response"
+    echo "   Response: $GATEWAY_RESPONSE"
+  fi
+else
+  echo "⚠️  Failed to create test gateway"
+fi
 echo ""
 
 echo "✨ Test environment is ready for integration tests!"
