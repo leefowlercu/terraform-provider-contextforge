@@ -49,7 +49,24 @@ The provider follows Terraform Plugin Framework conventions:
 - Provider lifecycle methods: `Metadata()`, `Schema()`, `Configure()`, `DataSources()`, `Resources()`
 - The `Configure()` method creates the `contextforge.Client` and stores it in both `resp.DataSourceData` and `resp.ResourceData` for downstream use
 
-**Currently Implemented**: Provider infrastructure only. No data sources or resources are implemented yet (both return `nil`).
+### Implemented Data Sources
+
+**contextforge_gateway** - Retrieves gateway information by ID (`internal/provider/data_source_gateway.go`)
+
+The gateway data source provides read-only access to ContextForge MCP Gateway resources:
+
+- **77 attributes** covering core fields, authentication, organizational metadata, timestamps, and custom metadata
+- **Type conversions** handled by `internal/tfconv` package for complex types:
+  - `map[string]any` → `types.Dynamic` for heterogeneous maps (capabilities, oauth_config, metadata)
+  - `[]map[string]string` → `types.List` of `types.Map` for auth headers
+  - Timestamps → `types.String` in RFC3339 format
+- **Key attributes**: id, name, url, transport, description, enabled, reachable, created_at, updated_at
+- **Authentication fields**: auth_type, auth_token, auth_username, auth_password, oauth_config
+- **Organizational fields**: team_id, team, owner_email, visibility, tags
+
+**Acceptance tests** verify the data source with a real gateway created during integration test setup (see `internal/provider/data_source_gateway_test.go`).
+
+**Resources**: No managed resources are currently implemented. The `Resources()` method returns `nil`.
 
 ### Binary Versioning
 
@@ -93,16 +110,33 @@ make integration-test           # Runs tests with TF_ACC=1
 make integration-test-teardown  # Stops gateway and cleans tmp/
 ```
 
-**Integration test artifacts** (created in `tmp/`):
-- `contextforge-test.db` - SQLite database
-- `contextforge-test.pid` - Gateway process ID
-- `contextforge-test.log` - Gateway logs
-- `contextforge-test-token.txt` - JWT token (7-day expiration)
+**Integration test infrastructure:**
 
-**Test gateway credentials**:
-- Admin email: `admin@test.local`
-- Admin password: `testpassword123`
-- JWT secret: `test-secret-key-for-integration-testing`
+The setup script creates a complete three-tier test environment:
+
+1. **ContextForge Gateway** (port 8000)
+   - SQLite database: `tmp/contextforge-test.db`
+   - Process ID: `tmp/contextforge-test.pid`
+   - Logs: `tmp/contextforge-test.log`
+   - JWT token: `tmp/contextforge-test-token.txt` (7-day expiration)
+   - Admin: `admin@test.local` / `testpassword123`
+   - JWT secret: `test-secret-key-for-integration-testing`
+
+2. **MCP Time Server** (port 8002)
+   - Provides real MCP endpoint for gateway connectivity validation
+   - Started via `mcpgateway.translate` wrapper: `uvx mcp-server-time --local-timezone=UTC`
+   - Process ID: `tmp/time-server.pid`
+   - Logs: `tmp/time-server.log`
+   - Why needed: ContextForge validates gateway connectivity during creation
+
+3. **Test Gateway Resource**
+   - Created via ContextForge API pointing to time server
+   - URL: `http://localhost:8002/sse`
+   - Transport: SSE (Server-Sent Events)
+   - Name: "test-time-server"
+   - Description: "Test gateway for integration tests"
+   - Gateway ID saved: `tmp/contextforge-test-gateway-id.txt`
+   - Used by acceptance tests to verify data source functionality
 
 ### Debugging the Provider
 
@@ -118,6 +152,12 @@ Override provider address for local development:
 export TF_PROVIDER_ADDRESS="registry.terraform.io/leefowlercu/contextforge"
 go run main.go
 ```
+
+**Provider Address Configuration:**
+- **Production default**: `registry.terraform.io/hashicorp/contextforge` (defined in `main.go`)
+- **Development override**: Use `TF_PROVIDER_ADDRESS` environment variable to test with alternate namespaces
+- The example above uses `leefowlercu` namespace for local development/testing
+- When the provider is published to the Terraform Registry, it will use the `hashicorp` namespace
 
 ## Release Process
 
@@ -138,12 +178,16 @@ goreleaser release --clean
 ## Key Files and Locations
 
 ```
-main.go                           - Provider entrypoint, gRPC server setup
-internal/provider/provider.go     - Provider implementation (all lifecycle methods)
-scripts/integration-test-setup.sh - Gateway startup automation
-scripts/integration-test-teardown.sh - Gateway cleanup
-test/terraform/                   - Integration test Terraform configurations
-go.mod                            - Dependencies (Plugin Framework 1.16.1, go-contextforge 0.5.0)
+main.go                                      - Provider entrypoint, gRPC server setup
+internal/provider/provider.go                - Provider implementation (all lifecycle methods)
+internal/provider/data_source_gateway.go     - Gateway data source implementation
+internal/provider/data_source_gateway_test.go - Gateway acceptance tests
+internal/provider/provider_test.go           - Shared test utilities (testAccProtoV6ProviderFactories, testAccPreCheck)
+internal/tfconv/convert.go                   - Type conversion utilities for Terraform Plugin Framework
+scripts/integration-test-setup.sh            - Gateway startup automation, MCP server, test gateway creation
+scripts/integration-test-teardown.sh         - Gateway cleanup
+test/terraform/                              - Manual testing Terraform configurations
+go.mod                                       - Dependencies (Plugin Framework 1.16.1, go-contextforge 0.5.0)
 ```
 
 ## Important Implementation Details
@@ -173,3 +217,20 @@ if !ok {
     return
 }
 ```
+
+### Test Organization
+
+**All tests are co-located in `internal/provider/`** following Terraform provider conventions:
+
+- `provider_test.go` - Shared test utilities:
+  - `testAccProtoV6ProviderFactories` - Provider factory for acceptance tests
+  - `testAccPreCheck(t *testing.T)` - Environment variable validation
+  - Both are unexported (lowercase) as they're package-internal
+
+- `data_source_<name>_test.go` - Acceptance tests for data sources:
+  - Tests run with `TF_ACC=1` environment variable
+  - Use `testAccProtoV6ProviderFactories` for provider instantiation
+  - Use `testAccPreCheck(t)` in PreCheck field
+  - Example: `data_source_gateway_test.go` with 4 tests covering basic lookup, error cases, and attribute verification
+
+**No separate test packages**: Unlike some projects, this provider does not use `internal/data` or `internal/acctest` packages. All data sources, resources, and tests reside in `internal/provider/` to avoid import cycles.

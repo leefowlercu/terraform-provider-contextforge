@@ -9,6 +9,9 @@ Terraform provider for IBM ContextForge MCP Gateway management. Manages virtual 
 - [Provider Configuration](#provider-configuration)
   - [Authentication](#authentication)
   - [Configuration Example](#configuration-example)
+- [Data Sources](#data-sources)
+  - [contextforge_gateway](#contextforge_gateway)
+- [Resources](#resources)
 - [Development](#development)
   - [Prerequisites](#prerequisites)
   - [Building the Provider](#building-the-provider)
@@ -48,7 +51,7 @@ Both attributes are optional in the provider configuration block but must be set
 terraform {
   required_providers {
     contextforge = {
-      source  = "hashicorp/contextforge"
+      source  = "registry.terraform.io/hashicorp/contextforge"
       version = "~> 0.1"
     }
   }
@@ -68,6 +71,49 @@ export CONTEXTFORGE_TOKEN="your-jwt-token"
 
 terraform plan
 ```
+
+## Data Sources
+
+### contextforge_gateway
+
+Retrieves information about an existing ContextForge MCP Gateway by ID.
+
+**Example Usage:**
+
+```hcl
+data "contextforge_gateway" "example" {
+  id = "gateway-id-12345"
+}
+
+output "gateway_url" {
+  value = data.contextforge_gateway.example.url
+}
+
+output "gateway_status" {
+  value = {
+    enabled   = data.contextforge_gateway.example.enabled
+    reachable = data.contextforge_gateway.example.reachable
+  }
+}
+```
+
+**Key Attributes:**
+
+- `id` - (Required) The unique identifier of the gateway to retrieve
+- `name` - Gateway name
+- `url` - Gateway endpoint URL
+- `transport` - Transport protocol (SSE, HTTP, STDIO, STREAMABLEHTTP)
+- `description` - Gateway description
+- `enabled` - Whether the gateway is enabled
+- `reachable` - Whether the gateway is currently reachable
+- `created_at` - Gateway creation timestamp
+- `updated_at` - Gateway last update timestamp
+
+See the Terraform Registry documentation for the complete attribute reference.
+
+## Resources
+
+No managed resources are currently implemented. Resources for managing gateways, servers, tools, and prompts will be added in future releases.
 
 ## Development
 
@@ -97,6 +143,22 @@ make install
 ```
 
 This builds and copies the provider binary to `$GOPATH/bin`.
+
+### Continuous Integration
+
+The project uses GitHub Actions for automated testing. The workflow runs on:
+- Push to `master` branch
+- Pull requests
+
+**Workflow Jobs:**
+
+1. **Unit Tests** - Runs unit tests and verifies the provider builds successfully
+2. **Acceptance Tests** - Runs full integration test lifecycle:
+   - Starts local ContextForge gateway using `uvx`
+   - Runs acceptance tests with `TF_ACC=1`
+   - Cleans up gateway and test artifacts
+
+See `.github/workflows/test.yml` for the complete workflow configuration.
 
 ## Testing
 
@@ -137,13 +199,27 @@ make integration-test
 make integration-test-teardown
 ```
 
-The integration test setup script:
-- Launches ContextForge gateway on port 8000
-- Creates an admin user (`admin@test.local`)
-- Generates a JWT token with 7-day expiration
-- Stores the token in `tmp/contextforge-test-token.txt`
-- Stores the gateway PID in `tmp/contextforge-test.pid`
-- Stores logs in `tmp/contextforge-test.log`
+**Integration test infrastructure:**
+
+The integration test setup script creates a complete test environment:
+
+1. **ContextForge Gateway** - Launches gateway on port 8000
+   - Creates admin user (`admin@test.local`)
+   - Generates JWT token with 7-day expiration
+   - Token stored in `tmp/contextforge-test-token.txt`
+   - Gateway PID in `tmp/contextforge-test.pid`
+   - Logs in `tmp/contextforge-test.log`
+
+2. **MCP Time Server** - Starts test MCP server on port 8002
+   - Provides real MCP endpoint for gateway connectivity validation
+   - Uses `mcp-server-time` via `mcpgateway.translate` wrapper
+   - PID stored in `tmp/time-server.pid`
+
+3. **Test Gateway** - Creates gateway resource pointing to time server
+   - Gateway URL: `http://localhost:8002/sse`
+   - Transport: SSE (Server-Sent Events)
+   - Gateway ID saved in `tmp/contextforge-test-gateway-id.txt`
+   - Used by acceptance tests to verify data source functionality
 
 ## Makefile Targets
 
