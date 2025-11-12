@@ -26,12 +26,17 @@ builds:
     - '386'
     - arm
     - arm64
+  goarm:
+    - '7'
   ignore:
     - goos: darwin
       goarch: '386'
+    - goos: windows
+      goarch: arm
   binary: '{{ .ProjectName }}_v{{ .Version }}'
 archives:
-- format: zip
+- files:
+    - none*
   name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 checksum:
   extra_files:
@@ -52,10 +57,58 @@ signs:
       - "--detach-sign"
       - "${artifact}"
 release:
+  github:
+    owner: leefowlercu
+    name: terraform-provider-contextforge
+  draft: true
+  replace_existing_draft: true
+  prerelease: auto
+  header: |
+    ## Installation
+
+    To use this provider, add the following to your Terraform configuration:
+
+    ```hcl
+    terraform {
+      required_providers {
+        contextforge = {
+          source  = "hashicorp/contextforge"
+          version = "~> {{ .Version }}"
+        }
+      }
+    }
+    ```
+
+    See the [provider documentation](https://registry.terraform.io/providers/hashicorp/contextforge/latest/docs) for usage details.
+  footer: |
+    **Full Changelog**: https://github.com/leefowlercu/terraform-provider-contextforge/compare/{{ .PreviousTag }}...{{ .Tag }}
   extra_files:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
-  # If you want to manually examine the release before its live, uncomment this line:
-  # draft: true
 changelog:
-  disable: true
+  use: github
+  sort: asc
+  abbrev: 7
+  groups:
+    - title: Added
+      regexp: '^feat:'
+      order: 0
+    - title: Fixed
+      regexp: '^(fix|bug):'
+      order: 1
+    - title: Changed
+      regexp: '^refactor:'
+      order: 2
+    - title: Documentation
+      regexp: '^docs:'
+      order: 3
+    - title: Build
+      regexp: '^(build|chore):'
+      order: 4
+    - title: Tests
+      regexp: '^(test|style):'
+      order: 5
+  filters:
+    exclude:
+      - '^release: prepare'
+      - '^Merge '
