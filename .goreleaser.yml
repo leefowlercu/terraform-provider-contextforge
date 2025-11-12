@@ -108,7 +108,10 @@ changelog:
     - title: Tests
       regexp: '^(test|style):'
       order: 5
+  # Exclude release preparation commits
   filters:
     exclude:
-      - '^release: prepare'
-      - '^Merge '
+      - '^release: prepare v'
+      - '^docs: update changelog'
+      - Merge pull request
+      - Merge branch
