@@ -228,6 +228,9 @@ if [ -z "$GPG_FINGERPRINT" ]; then
     echo ""
 fi
 
+# Set GPG_TTY for GPG agent to work properly in non-interactive mode
+export GPG_TTY=$(tty)
+
 # Run goreleaser
 echo -e "${YELLOW}Running goreleaser...${NC}"
 if ! goreleaser release --clean; then
