@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.0] - 2025-11-13
+
+### Added
+
+- Ufeat: add gateway data source with 77 attributes and type conversion utilities
+- Ufeat: initial commit, add provider, providerserver, test terraform module, project documentation, initial release toolchain, make targets, integration test setup & teardown scripts
+
+
+### Documentation
+
+- Udocs: document gateway data source, ci/cd, and package structure
+
+
+### Build
+
+- Ubuild: update build/release toolchain
+- Ubuild: update build/release toolchain
+- Ubuild: update build/release toolchain and initial version of provider binary
+- Ubuild: update goreleaser changelog commit message filters
+- Ubuild: update prepare release script to correctly prompt for gpg key passphrase during release prep
+- Ubuild: update prepare release script to handle initial commit scenarios
+- Uchore: add terraform registry manifest file
+
+
+### Tests
+
+- Utest: add mcp time server and test gateway creation to integration setup
 ## [Unreleased]
 
 ### Added
@@ -25,3 +52,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package structure and development commands
 
 [Unreleased]: https://github.com/leefowlercu/terraform-provider-contextforge/commits/dev
+
+[v0.1.0]: https://github.com/leefowlercu/terraform-provider-contextforge/releases/tag/v0.1.0
