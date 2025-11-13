@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add gateway data source with 77 attributes and type conversion utilities
+- Add gateway data source with attributes and type conversion utilities
 - Initial commit, add provider, providerserver, test terraform module, project documentation, initial release toolchain, make targets, integration test setup & teardown scripts
 
 ### Documentation

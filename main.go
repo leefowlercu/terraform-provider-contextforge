@@ -12,7 +12,7 @@ import (
 
 // value set during build by goreleaser
 var (
-	version = "0.0.0"
+	version = "0.1.0"
 )
 
 func main() {

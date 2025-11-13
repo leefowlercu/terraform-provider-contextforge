@@ -3,13 +3,12 @@ name: Tests
 on:
   pull_request:
     paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - 'docs/**'
+      - "README.md"
+      - "CHANGELOG.md"
+      - "docs/**"
   push:
     branches:
       - master
-      - main
 
 permissions:
   contents: read
@@ -25,7 +24,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
           cache: true
 
       - name: Run unit tests
@@ -44,13 +43,13 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: "go.mod"
           cache: true
 
       - name: Setup Python for uvx
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install uv
         run: |

@@ -13,6 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - [Building and Testing](#building-and-testing)
   - [Integration Testing](#integration-testing)
   - [Debugging the Provider](#debugging-the-provider)
+- [CI/CD](#cicd)
 - [Release Process](#release-process)
 - [Key Files and Locations](#key-files-and-locations)
 - [Important Implementation Details](#important-implementation-details)
@@ -55,7 +56,7 @@ The provider follows Terraform Plugin Framework conventions:
 
 The gateway data source provides read-only access to ContextForge MCP Gateway resources:
 
-- **77 attributes** covering core fields, authentication, organizational metadata, timestamps, and custom metadata
+- **38 attributes** covering core fields, authentication, organizational metadata, timestamps, and custom metadata
 - **Type conversions** handled by `internal/tfconv` package for complex types:
   - `map[string]any` → `types.Dynamic` for heterogeneous maps (capabilities, oauth_config, metadata)
   - `[]map[string]string` → `types.List` of `types.Map` for auth headers
@@ -71,11 +72,13 @@ The gateway data source provides read-only access to ContextForge MCP Gateway re
 ### Binary Versioning
 
 Version is injected at build time via goreleaser's ldflags:
-- `main.go` defines `var version = "0.1.0"`
+- `main.go` defines `var version = "<current_version>"` (replaced during build)
 - Goreleaser sets: `-X main.version={{.Version}}`
 - Version is passed to `provider.New(version)` during initialization
 
 ## Development Commands
+
+**Prerequisites**: Go 1.25.3 or later
 
 ### Building and Testing
 
@@ -159,14 +162,50 @@ go run main.go
 - The example above uses `leefowlercu` namespace for local development/testing
 - When the provider is published to the Terraform Registry, it will use the `hashicorp` namespace
 
+## CI/CD
+
+The project uses GitHub Actions for automated testing (`.github/workflows/test.yml`):
+
+**Triggers:**
+- Push to `master` branch
+- Pull requests (ignoring changes to README.md, CHANGELOG.md, and docs/)
+
+**Workflow Jobs:**
+
+1. **Unit Tests** (`unit-test`)
+   - Runs on ubuntu-latest with 15-minute timeout
+   - Executes `go test` with coverage
+   - Verifies the provider builds successfully
+
+2. **Acceptance Tests** (`acceptance-test`)
+   - Runs on ubuntu-latest with 60-minute timeout
+   - Installs Python 3.11 and uv for gateway management
+   - Executes full integration test lifecycle:
+     - `make integration-test-setup` - Starts ContextForge gateway and MCP time server
+     - `make integration-test` - Runs acceptance tests with `TF_ACC=1`
+     - `make integration-test-teardown` - Cleans up test infrastructure
+   - Uploads gateway logs as artifacts on failure
+
 ## Release Process
 
-Releases are automated via goreleaser (`.goreleaser.yml`):
+Releases are automated via goreleaser (`.goreleaser.yml`) and managed through Makefile targets:
 
 ```bash
-# Requires GPG_FINGERPRINT environment variable for signing
+# Automated version bumping and release preparation
+make release-patch  # Bump patch version (X.Y.Z -> X.Y.Z+1)
+make release-minor  # Bump minor version (X.Y.Z -> X.Y+1.0)
+make release-major  # Bump major version (X.Y.Z -> X+1.0.0)
+
+# Manual release with specific version
+make release-prep VERSION=vX.Y.Z
+
+# Direct goreleaser usage (requires GPG_FINGERPRINT environment variable)
 goreleaser release --clean
 ```
+
+**Release workflow:**
+- `scripts/bump-version.sh` - Calculates next version based on git tags
+- `scripts/prepare-release.sh` - Updates CHANGELOG.md, creates git tag, runs goreleaser
 
 **Build configuration**:
 - CGO disabled for portability
@@ -180,12 +219,14 @@ goreleaser release --clean
 ```
 main.go                                      - Provider entrypoint, gRPC server setup
 internal/provider/provider.go                - Provider implementation (all lifecycle methods)
+internal/provider/doc.go                     - Comprehensive package documentation with implementation patterns
 internal/provider/data_source_gateway.go     - Gateway data source implementation
 internal/provider/data_source_gateway_test.go - Gateway acceptance tests
 internal/provider/provider_test.go           - Shared test utilities (testAccProtoV6ProviderFactories, testAccPreCheck)
 internal/tfconv/convert.go                   - Type conversion utilities for Terraform Plugin Framework
 scripts/integration-test-setup.sh            - Gateway startup automation, MCP server, test gateway creation
 scripts/integration-test-teardown.sh         - Gateway cleanup
+scripts/bump-version.sh                      - Version bumping utility (used by release targets)
 test/terraform/                              - Manual testing Terraform configurations
 go.mod                                       - Dependencies (Plugin Framework 1.16.1, go-contextforge 0.5.0)
 ```

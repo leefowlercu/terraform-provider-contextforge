@@ -5,6 +5,7 @@ Terraform provider for IBM ContextForge MCP Gateway management. Manages virtual 
 ## Table of Contents
 
 - [Overview](#overview)
+- [Architecture](#architecture)
 - [Requirements](#requirements)
 - [Provider Configuration](#provider-configuration)
   - [Authentication](#authentication)
@@ -27,6 +28,12 @@ Terraform provider for IBM ContextForge MCP Gateway management. Manages virtual 
 The ContextForge Terraform Provider enables infrastructure-as-code management of IBM ContextForge MCP Gateway resources. The provider is built using the Terraform Plugin Framework and communicates with the ContextForge MCP Gateway API.
 
 For more information about ContextForge MCP Gateway, see the [official documentation](https://github.com/IBM/mcp-context-forge).
+
+## Architecture
+
+The provider is built using the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1 and communicates with the ContextForge MCP Gateway API via the [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.5.0 client library. The `internal/tfconv` package handles type conversions between the client library's Go types and Terraform Plugin Framework types, including conversions for heterogeneous maps, authentication headers, and RFC3339 timestamps.
+
+For detailed architecture documentation, implementation patterns, and developer guidelines, see [CLAUDE.md](CLAUDE.md).
 
 ## Requirements
 
@@ -245,6 +252,10 @@ Contributions are welcome. When contributing:
 4. Use conventional commit format for commit messages
 5. Update documentation as needed
 
-The provider uses:
+**Documentation:**
+- See [CLAUDE.md](CLAUDE.md) for detailed architecture, implementation patterns, and developer guidelines
+- See [CHANGELOG.md](CHANGELOG.md) for version history and release notes
+
+**Dependencies:**
 - [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1
 - [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.5.0 - Go client library for ContextForge MCP Gateway
