@@ -56,8 +56,10 @@ merge_changelog() {
         if [[ "$line" =~ ^###[[:space:]]+(.*) ]]; then
             # Save previous section if it had entries
             if [ -n "$ENTRIES" ] && [ -n "$SECTION_NAME" ]; then
-                echo -e "\n### $SECTION_NAME\n" >> "$TEMP_CHANGELOG"
-                echo "$ENTRIES" >> "$TEMP_CHANGELOG"
+                echo "" >> "$TEMP_CHANGELOG"
+                echo "### $SECTION_NAME" >> "$TEMP_CHANGELOG"
+                echo "" >> "$TEMP_CHANGELOG"
+                echo -e "$ENTRIES" >> "$TEMP_CHANGELOG"
             fi
 
             SECTION_NAME="${BASH_REMATCH[1]}"
@@ -66,15 +68,24 @@ merge_changelog() {
         # Check for commit entries (e.g., "* abc1234 commit message")
         elif [[ "$line" =~ ^\*[[:space:]]+[a-f0-9]{7}[[:space:]]+(.*) ]]; then
             local MESSAGE="${BASH_REMATCH[1]}"
-            # Capitalize first letter and format as list item
-            MESSAGE="$(echo "$MESSAGE" | sed 's/^./\U&/')"
-            ENTRIES="${ENTRIES}- ${MESSAGE}\n"
+            # Capitalize first letter
+            local FIRST_CHAR=$(echo "${MESSAGE:0:1}" | tr '[:lower:]' '[:upper:]')
+            local REST="${MESSAGE:1}"
+            MESSAGE="${FIRST_CHAR}${REST}"
+            # Add to entries without trailing newline (will be added by echo -e)
+            if [ -z "$ENTRIES" ]; then
+                ENTRIES="- ${MESSAGE}"
+            else
+                ENTRIES="${ENTRIES}\n- ${MESSAGE}"
+            fi
         fi
     done < "$DIST_CHANGELOG"
 
     # Save last section
     if [ -n "$ENTRIES" ] && [ -n "$SECTION_NAME" ]; then
-        echo -e "\n### $SECTION_NAME\n" >> "$TEMP_CHANGELOG"
+        echo "" >> "$TEMP_CHANGELOG"
+        echo "### $SECTION_NAME" >> "$TEMP_CHANGELOG"
+        echo "" >> "$TEMP_CHANGELOG"
         echo -e "$ENTRIES" >> "$TEMP_CHANGELOG"
     fi
 
@@ -88,9 +99,10 @@ merge_changelog() {
     # Get date from git tag
     local TAG_DATE=$(git log -1 --format=%ai "$VERSION" | cut -d' ' -f1)
 
-    # Build new version section
+    # Build new version section with trailing blank line
     local VERSION_SECTION="## [${VERSION}] - ${TAG_DATE}\n"
     VERSION_SECTION="${VERSION_SECTION}$(cat "$TEMP_CHANGELOG")"
+    VERSION_SECTION="${VERSION_SECTION}\n"
 
     # Find insertion point (after header, before first version or at end)
     local INSERT_LINE=$(grep -n "^## \[" "$CHANGELOG" | head -1 | cut -d: -f1)
