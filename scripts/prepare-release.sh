@@ -182,9 +182,18 @@ fi
 echo -e "${YELLOW}Staging version file...${NC}"
 git add "$VERSION_FILE"
 
-# Create release commit
-echo -e "${YELLOW}Creating release commit...${NC}"
-git commit -m "release: prepare ${VERSION}"
+# Track whether we created a commit (for rollback purposes)
+CREATED_COMMIT=false
+
+# Check if there are any staged changes
+if ! git diff --cached --quiet; then
+    # Create release commit only if there are changes
+    echo -e "${YELLOW}Creating release commit...${NC}"
+    git commit -m "release: prepare ${VERSION}"
+    CREATED_COMMIT=true
+else
+    echo -e "${YELLOW}Version already correct in ${VERSION_FILE}, skipping commit...${NC}"
+fi
 
 # Create annotated tag
 echo -e "${YELLOW}Creating annotated tag...${NC}"
@@ -197,7 +206,9 @@ if ! command -v goreleaser &> /dev/null; then
     echo ""
     echo "Rolling back changes..."
     git tag -d "$VERSION"
-    git reset --hard HEAD~1
+    if [ "$CREATED_COMMIT" = true ]; then
+        git reset --hard HEAD~1
+    fi
     exit 1
 fi
 
@@ -224,7 +235,9 @@ if ! goreleaser release --clean; then
     echo ""
     echo "Rolling back changes..."
     git tag -d "$VERSION"
-    git reset --hard HEAD~1
+    if [ "$CREATED_COMMIT" = true ]; then
+        git reset --hard HEAD~1
+    fi
     exit 1
 fi
 
@@ -234,18 +247,32 @@ if ! merge_changelog "$VERSION"; then
     echo ""
     echo "Rolling back changes..."
     git tag -d "$VERSION"
-    git reset --hard HEAD~1
+    if [ "$CREATED_COMMIT" = true ]; then
+        git reset --hard HEAD~1
+    fi
     exit 1
 fi
 
-# Stage and amend commit with changelog
-echo -e "${YELLOW}Amending commit with changelog...${NC}"
+# Stage changelog and create/amend commit
 git add "$CHANGELOG"
-git commit --amend --no-edit
 
-# Update tag to point to amended commit
-echo -e "${YELLOW}Updating tag...${NC}"
-git tag -fa "$VERSION" -m "Terraform ContextForge Provider ${VERSION}"
+if [ "$CREATED_COMMIT" = true ]; then
+    # Amend existing commit with changelog
+    echo -e "${YELLOW}Amending commit with changelog...${NC}"
+    git commit --amend --no-edit
+
+    # Update tag to point to amended commit
+    echo -e "${YELLOW}Updating tag...${NC}"
+    git tag -fa "$VERSION" -m "Terraform ContextForge Provider ${VERSION}"
+else
+    # Create new commit with changelog
+    echo -e "${YELLOW}Creating release commit with changelog...${NC}"
+    git commit -m "release: prepare ${VERSION}"
+
+    # Update tag to point to new commit
+    echo -e "${YELLOW}Updating tag...${NC}"
+    git tag -fa "$VERSION" -m "Terraform ContextForge Provider ${VERSION}"
+fi
 
 echo ""
 echo -e "${GREEN}Release ${VERSION} prepared successfully!${NC}"
