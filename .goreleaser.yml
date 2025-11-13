@@ -79,7 +79,7 @@ release:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
 changelog:
-  use: github
+  use: git
   sort: asc
   abbrev: 7
   groups:

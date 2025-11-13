@@ -259,22 +259,28 @@ fi
 # Stage changelog and create/amend commit
 git add "$CHANGELOG"
 
-if [ "$CREATED_COMMIT" = true ]; then
-    # Amend existing commit with changelog
-    echo -e "${YELLOW}Amending commit with changelog...${NC}"
-    git commit --amend --no-edit
+# Check if changelog was actually modified
+if ! git diff --cached --quiet; then
+    if [ "$CREATED_COMMIT" = true ]; then
+        # Amend existing commit with changelog
+        echo -e "${YELLOW}Amending commit with changelog...${NC}"
+        git commit --amend --no-edit
 
-    # Update tag to point to amended commit
-    echo -e "${YELLOW}Updating tag...${NC}"
-    git tag -fa "$VERSION" -m "Terraform ContextForge Provider ${VERSION}"
+        # Update tag to point to amended commit
+        echo -e "${YELLOW}Updating tag...${NC}"
+        git tag -fa "$VERSION" -m "Terraform ContextForge Provider ${VERSION}"
+    else
+        # Create new commit with changelog
+        echo -e "${YELLOW}Creating release commit with changelog...${NC}"
+        git commit -m "release: prepare ${VERSION}"
+
+        # Update tag to point to new commit
+        echo -e "${YELLOW}Updating tag...${NC}"
+        git tag -fa "$VERSION" -m "Terraform ContextForge Provider ${VERSION}"
+    fi
 else
-    # Create new commit with changelog
-    echo -e "${YELLOW}Creating release commit with changelog...${NC}"
-    git commit -m "release: prepare ${VERSION}"
-
-    # Update tag to point to new commit
-    echo -e "${YELLOW}Updating tag...${NC}"
-    git tag -fa "$VERSION" -m "Terraform ContextForge Provider ${VERSION}"
+    echo -e "${YELLOW}No changelog changes to commit${NC}"
+    # Tag is already pointing to correct commit
 fi
 
 echo ""
