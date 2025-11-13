@@ -104,30 +104,58 @@ merge_changelog() {
     VERSION_SECTION="${VERSION_SECTION}$(cat "$TEMP_CHANGELOG")"
     VERSION_SECTION="${VERSION_SECTION}\n"
 
-    # Find insertion point (after header, before first version or at end)
-    local INSERT_LINE=$(grep -n "^## \[" "$CHANGELOG" | head -1 | cut -d: -f1)
+    # Find Unreleased section and the next version section
+    local UNRELEASED_LINE=$(grep -n "^## \[Unreleased\]" "$CHANGELOG" | cut -d: -f1)
+    local NEXT_VERSION_LINE=$(grep -n "^## \[[v0-9]" "$CHANGELOG" | head -1 | cut -d: -f1)
 
-    if [ -z "$INSERT_LINE" ]; then
-        # No existing versions, append before links section if it exists
-        INSERT_LINE=$(grep -n "^\[" "$CHANGELOG" | head -1 | cut -d: -f1)
-        if [ -n "$INSERT_LINE" ]; then
-            INSERT_LINE=$((INSERT_LINE - 1))
-        fi
-    fi
-
-    if [ -n "$INSERT_LINE" ]; then
-        # Insert at specific line
+    if [ -n "$UNRELEASED_LINE" ]; then
+        # We have an Unreleased section - insert new version after it and clear its content
         {
-            head -n $((INSERT_LINE - 1)) "$CHANGELOG"
+            # Everything before and including Unreleased header
+            head -n "$UNRELEASED_LINE" "$CHANGELOG"
+            # Empty line after Unreleased
+            echo ""
+            # New version section
             echo -e "$VERSION_SECTION"
-            tail -n +$INSERT_LINE "$CHANGELOG"
+            # Everything after the Unreleased section content (skip to next version or links)
+            if [ -n "$NEXT_VERSION_LINE" ]; then
+                tail -n +"$NEXT_VERSION_LINE" "$CHANGELOG"
+            else
+                # No existing versions, just get the links section
+                grep -n "^\[" "$CHANGELOG" | head -1 | cut -d: -f1 | {
+                    read LINKS_LINE
+                    if [ -n "$LINKS_LINE" ]; then
+                        tail -n +"$LINKS_LINE" "$CHANGELOG"
+                    fi
+                }
+            fi
         } > "${CHANGELOG}.tmp"
     else
-        # Append to end
-        {
-            cat "$CHANGELOG"
-            echo -e "\n$VERSION_SECTION"
-        } > "${CHANGELOG}.tmp"
+        # No Unreleased section, insert before first version
+        local INSERT_LINE=$(grep -n "^## \[" "$CHANGELOG" | head -1 | cut -d: -f1)
+
+        if [ -z "$INSERT_LINE" ]; then
+            # No existing versions, append before links section if it exists
+            INSERT_LINE=$(grep -n "^\[" "$CHANGELOG" | head -1 | cut -d: -f1)
+            if [ -n "$INSERT_LINE" ]; then
+                INSERT_LINE=$((INSERT_LINE - 1))
+            fi
+        fi
+
+        if [ -n "$INSERT_LINE" ]; then
+            # Insert at specific line
+            {
+                head -n $((INSERT_LINE - 1)) "$CHANGELOG"
+                echo -e "$VERSION_SECTION"
+                tail -n +$INSERT_LINE "$CHANGELOG"
+            } > "${CHANGELOG}.tmp"
+        else
+            # Append to end
+            {
+                cat "$CHANGELOG"
+                echo -e "\n$VERSION_SECTION"
+            } > "${CHANGELOG}.tmp"
+        fi
     fi
 
     mv "${CHANGELOG}.tmp" "$CHANGELOG"
