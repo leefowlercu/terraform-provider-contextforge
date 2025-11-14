@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add server data source with attributes and type conversion utilities
+- Add tool data source with input schema conversion
+
 ### Build
 
 - Update prepare-release script

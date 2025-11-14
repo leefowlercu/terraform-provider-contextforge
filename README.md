@@ -12,6 +12,9 @@ Terraform provider for IBM ContextForge MCP Gateway management. Manages virtual 
   - [Configuration Example](#configuration-example)
 - [Data Sources](#data-sources)
   - [contextforge_gateway](#contextforge_gateway)
+  - [contextforge_server](#contextforge_server)
+  - [contextforge_resource](#contextforge_resource)
+  - [contextforge_tool](#contextforge_tool)
 - [Resources](#resources)
 - [Development](#development)
   - [Prerequisites](#prerequisites)
@@ -31,9 +34,7 @@ For more information about ContextForge MCP Gateway, see the [official documenta
 
 ## Architecture
 
-The provider is built using the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1 and communicates with the ContextForge MCP Gateway API via the [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.5.0 client library. The `internal/tfconv` package handles type conversions between the client library's Go types and Terraform Plugin Framework types, including conversions for heterogeneous maps, authentication headers, and RFC3339 timestamps.
-
-For detailed architecture documentation, implementation patterns, and developer guidelines, see [CLAUDE.md](CLAUDE.md).
+The provider is built using the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1 and communicates with the ContextForge MCP Gateway API via the [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.6.0 client library. The `internal/tfconv` package handles type conversions between the client library's Go types and Terraform Plugin Framework types, including conversions for heterogeneous maps, authentication headers, and RFC3339 timestamps.
 
 ## Requirements
 
@@ -118,9 +119,129 @@ output "gateway_status" {
 
 See the Terraform Registry documentation for the complete attribute reference.
 
+### contextforge_server
+
+Retrieves information about an existing ContextForge virtual server by ID.
+
+**Example Usage:**
+
+```hcl
+data "contextforge_server" "example" {
+  id = "server-id-12345"
+}
+
+output "server_status" {
+  value = {
+    name      = data.contextforge_server.example.name
+    is_active = data.contextforge_server.example.is_active
+  }
+}
+
+output "server_metrics" {
+  value = data.contextforge_server.example.metrics
+}
+```
+
+**Key Attributes:**
+
+- `id` - (Required) The unique identifier of the server to retrieve
+- `name` - Server name
+- `description` - Server description
+- `icon` - Server icon (URL or data URI)
+- `is_active` - Whether the server is active
+- `associated_tools` - Associated tool IDs
+- `associated_resources` - Associated resource IDs
+- `associated_prompts` - Associated prompt IDs
+- `associated_a2a_agents` - Associated A2A agent IDs
+- `metrics` - Nested object with performance metrics (total_executions, successful_executions, failed_executions, failure_rate, response times)
+- `created_at` - Server creation timestamp
+- `updated_at` - Server last update timestamp
+
+See the Terraform Registry documentation for the complete attribute reference.
+
+### contextforge_resource
+
+Retrieves information about an existing ContextForge resource by ID.
+
+**Example Usage:**
+
+```hcl
+data "contextforge_resource" "example" {
+  id = "1"
+}
+
+output "resource_info" {
+  value = {
+    name      = data.contextforge_resource.example.name
+    uri       = data.contextforge_resource.example.uri
+    is_active = data.contextforge_resource.example.is_active
+  }
+}
+
+output "resource_metrics" {
+  value = data.contextforge_resource.example.metrics
+}
+```
+
+**Key Attributes:**
+
+- `id` - (Required) The unique identifier of the resource to retrieve
+- `uri` - Resource URI
+- `name` - Resource name
+- `description` - Resource description
+- `mime_type` - MIME type of the resource
+- `size` - Resource size in bytes
+- `is_active` - Whether the resource is active
+- `metrics` - Nested object with performance metrics (total_executions, successful_executions, failed_executions, failure_rate, response times)
+- `tags` - Resource tags
+- `team_id` - Team ID
+- `visibility` - Visibility setting (public, private, etc.)
+- `created_at` - Resource creation timestamp
+- `updated_at` - Resource last update timestamp
+
+See the Terraform Registry documentation for the complete attribute reference.
+
+### contextforge_tool
+
+Retrieves information about an existing ContextForge tool by ID.
+
+**Example Usage:**
+
+```hcl
+data "contextforge_tool" "example" {
+  id = "tool-id-12345"
+}
+
+output "tool_info" {
+  value = {
+    name    = data.contextforge_tool.example.name
+    enabled = data.contextforge_tool.example.enabled
+  }
+}
+
+output "tool_input_schema" {
+  value = data.contextforge_tool.example.input_schema
+}
+```
+
+**Key Attributes:**
+
+- `id` - (Required) The unique identifier of the tool to retrieve
+- `name` - Tool name
+- `description` - Tool description
+- `input_schema` - JSON Schema defining tool input parameters
+- `enabled` - Whether the tool is enabled
+- `tags` - Tool tags
+- `team_id` - Team ID
+- `visibility` - Visibility setting (public, private, etc.)
+- `created_at` - Tool creation timestamp
+- `updated_at` - Tool last update timestamp
+
+See the Terraform Registry documentation for the complete attribute reference.
+
 ## Resources
 
-No managed resources are currently implemented. Resources for managing gateways, servers, tools, and prompts will be added in future releases.
+No managed resources are currently implemented. Resources for managing gateways, servers, tools, resources, and prompts will be added in future releases.
 
 ## Development
 
@@ -222,10 +343,26 @@ The integration test setup script creates a complete test environment:
    - Uses `mcp-server-time` via `mcpgateway.translate` wrapper
    - PID stored in `tmp/time-server.pid`
 
-3. **Test Gateway** - Creates gateway resource pointing to time server
-   - Gateway URL: `http://localhost:8002/sse`
-   - Transport: SSE (Server-Sent Events)
-   - Gateway ID saved in `tmp/contextforge-test-gateway-id.txt`
+3. **Test Resources** - Creates test entities for acceptance tests
+   - **Test Gateway**: Created via ContextForge API pointing to time server
+     - URL: `http://localhost:8002/sse`
+     - Transport: SSE (Server-Sent Events)
+     - Name: "test-time-server"
+     - Description: "Test gateway for integration tests"
+     - Gateway ID saved: `tmp/contextforge-test-gateway-id.txt`
+   - **Test Server**: Virtual MCP server for testing
+     - Name: "test-server"
+     - Description: "Test server for integration tests"
+     - Server ID saved: `tmp/contextforge-test-server-id.txt`
+   - **Test Tool**: MCP tool for testing
+     - Name: "test-tool"
+     - Description: "Test tool for integration tests"
+     - Tool ID saved: `tmp/contextforge-test-tool-id.txt`
+   - **Test Resource**: MCP resource for testing
+     - URI: "test://integration/resource"
+     - Name: "test-resource"
+     - Description: "Test resource for integration tests"
+     - Resource ID saved: `tmp/contextforge-test-resource-id.txt`
    - Used by acceptance tests to verify data source functionality
 
 ## Makefile Targets
@@ -258,4 +395,4 @@ Contributions are welcome. When contributing:
 
 **Dependencies:**
 - [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1
-- [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.5.0 - Go client library for ContextForge MCP Gateway
+- [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.6.0 - Go client library for ContextForge MCP Gateway

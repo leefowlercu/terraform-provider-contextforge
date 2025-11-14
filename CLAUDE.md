@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - [Architecture](#architecture)
   - [Provider Configuration Flow](#provider-configuration-flow)
   - [Provider Implementation Pattern](#provider-implementation-pattern)
+  - [Implemented Data Sources](#implemented-data-sources)
   - [Binary Versioning](#binary-versioning)
 - [Development Commands](#development-commands)
   - [Building and Testing](#building-and-testing)
@@ -20,10 +21,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - [Environment Variable Naming](#environment-variable-naming)
   - [Provider Protocol Version](#provider-protocol-version)
   - [Adding Data Sources or Resources](#adding-data-sources-or-resources)
+  - [Test Organization](#test-organization)
 
 ## Project Overview
 
-This is a Terraform provider for IBM ContextForge MCP Gateway built using the Terraform Plugin Framework v1.16.1. The provider communicates with the ContextForge MCP Gateway API via the `go-contextforge` v0.5.0 client library.
+This is a Terraform provider for IBM ContextForge MCP Gateway built using the Terraform Plugin Framework v1.16.1. The provider communicates with the ContextForge MCP Gateway API via the `go-contextforge` v0.6.0 client library.
 
 **Provider Address**: `registry.terraform.io/hashicorp/contextforge`
 
@@ -56,7 +58,6 @@ The provider follows Terraform Plugin Framework conventions:
 
 The gateway data source provides read-only access to ContextForge MCP Gateway resources:
 
-- **38 attributes** covering core fields, authentication, organizational metadata, timestamps, and custom metadata
 - **Type conversions** handled by `internal/tfconv` package for complex types:
   - `map[string]any` → `types.Dynamic` for heterogeneous maps (capabilities, oauth_config, metadata)
   - `[]map[string]string` → `types.List` of `types.Map` for auth headers
@@ -66,6 +67,49 @@ The gateway data source provides read-only access to ContextForge MCP Gateway re
 - **Organizational fields**: team_id, team, owner_email, visibility, tags
 
 **Acceptance tests** verify the data source with a real gateway created during integration test setup (see `internal/provider/data_source_gateway_test.go`).
+
+**contextforge_server** - Retrieves server information by ID (`internal/provider/data_source_server.go`)
+
+The server data source provides read-only access to ContextForge virtual server resources:
+
+- **Type conversions** handled for complex types:
+  - `[]int` → `[]int64` for associated_resources and associated_prompts lists
+  - Nested metrics object with performance statistics
+  - Timestamps → `types.String` in RFC3339 format
+- **Key attributes**: id, name, description, icon, is_active, associated_tools, associated_resources, associated_prompts, associated_a2a_agents, metrics
+- **Metrics fields**: total_executions, successful_executions, failed_executions, failure_rate, min_response_time, max_response_time, avg_response_time, last_execution_time
+- **Organizational fields**: team_id, team, owner_email, visibility, tags
+
+**Acceptance tests** verify the data source with a real server created during integration test setup (see `internal/provider/data_source_server_test.go`).
+
+**contextforge_resource** - Retrieves resource information by ID (`internal/provider/data_source_resource.go`)
+
+The resource data source provides read-only access to ContextForge resource entities:
+
+- **Type conversions** handled for complex types:
+  - `*FlexibleID` → `types.String` using `.String()` method for ID field
+  - `*int` → `types.Int64` using `tfconv.Int64Ptr()` for size and version fields
+  - Nested metrics object with performance statistics
+  - Timestamps → `types.String` in RFC3339 format
+- **Key attributes**: id, uri, name, description, mime_type, size, is_active, metrics
+- **Metrics fields**: total_executions, successful_executions, failed_executions, failure_rate, min_response_time, max_response_time, avg_response_time, last_execution_time
+- **Organizational fields**: team_id, team, owner_email, visibility, tags
+- **Unique characteristics**: Uses List() API endpoint and filters by ID (no dedicated metadata endpoint available)
+
+**Acceptance tests** verify the data source with a real resource created during integration test setup (see `internal/provider/data_source_resource_test.go`).
+
+**contextforge_tool** - Retrieves tool information by ID (`internal/provider/data_source_tool.go`)
+
+The tool data source provides read-only access to ContextForge tool resources:
+
+- **Type conversions** handled for complex types:
+  - `map[string]any` → `types.Dynamic` for input_schema (JSON Schema definition)
+  - Timestamps → `types.String` in RFC3339 format
+- **Key attributes**: id, name, description, input_schema, enabled
+- **Organizational fields**: tags, team_id, visibility
+- **Unique characteristic**: Simplest data source with no nested metrics, associations, or authentication fields
+
+**Acceptance tests** verify the data source with a real tool created during integration test setup (see `internal/provider/data_source_tool_test.go`).
 
 **Resources**: No managed resources are currently implemented. The `Resources()` method returns `nil`.
 
@@ -115,7 +159,7 @@ make integration-test-teardown  # Stops gateway and cleans tmp/
 
 **Integration test infrastructure:**
 
-The setup script creates a complete three-tier test environment:
+The setup script creates a complete test environment:
 
 1. **ContextForge Gateway** (port 8000)
    - SQLite database: `tmp/contextforge-test.db`
@@ -132,13 +176,26 @@ The setup script creates a complete three-tier test environment:
    - Logs: `tmp/time-server.log`
    - Why needed: ContextForge validates gateway connectivity during creation
 
-3. **Test Gateway Resource**
-   - Created via ContextForge API pointing to time server
-   - URL: `http://localhost:8002/sse`
-   - Transport: SSE (Server-Sent Events)
-   - Name: "test-time-server"
-   - Description: "Test gateway for integration tests"
-   - Gateway ID saved: `tmp/contextforge-test-gateway-id.txt`
+3. **Test Resources**
+   - **Test Gateway**: Created via ContextForge API pointing to time server
+     - URL: `http://localhost:8002/sse`
+     - Transport: SSE (Server-Sent Events)
+     - Name: "test-time-server"
+     - Description: "Test gateway for integration tests"
+     - Gateway ID saved: `tmp/contextforge-test-gateway-id.txt`
+   - **Test Server**: Virtual MCP server for testing
+     - Name: "test-server"
+     - Description: "Test server for integration tests"
+     - Server ID saved: `tmp/contextforge-test-server-id.txt`
+   - **Test Tool**: MCP tool for testing
+     - Name: "test-tool"
+     - Description: "Test tool for integration tests"
+     - Tool ID saved: `tmp/contextforge-test-tool-id.txt`
+   - **Test Resource**: MCP resource for testing
+     - URI: "test://integration/resource"
+     - Name: "test-resource"
+     - Description: "Test resource for integration tests"
+     - Resource ID saved: `tmp/contextforge-test-resource-id.txt`
    - Used by acceptance tests to verify data source functionality
 
 ### Debugging the Provider
@@ -222,13 +279,19 @@ internal/provider/provider.go                - Provider implementation (all life
 internal/provider/doc.go                     - Comprehensive package documentation with implementation patterns
 internal/provider/data_source_gateway.go     - Gateway data source implementation
 internal/provider/data_source_gateway_test.go - Gateway acceptance tests
+internal/provider/data_source_server.go      - Server data source implementation
+internal/provider/data_source_server_test.go - Server acceptance tests
+internal/provider/data_source_resource.go    - Resource data source implementation
+internal/provider/data_source_resource_test.go - Resource acceptance tests
+internal/provider/data_source_tool.go        - Tool data source implementation
+internal/provider/data_source_tool_test.go   - Tool acceptance tests
 internal/provider/provider_test.go           - Shared test utilities (testAccProtoV6ProviderFactories, testAccPreCheck)
 internal/tfconv/convert.go                   - Type conversion utilities for Terraform Plugin Framework
-scripts/integration-test-setup.sh            - Gateway startup automation, MCP server, test gateway creation
+scripts/integration-test-setup.sh            - Gateway startup automation, MCP server, test gateway, server, tool, and resource creation
 scripts/integration-test-teardown.sh         - Gateway cleanup
 scripts/bump-version.sh                      - Version bumping utility (used by release targets)
 test/terraform/                              - Manual testing Terraform configurations
-go.mod                                       - Dependencies (Plugin Framework 1.16.1, go-contextforge 0.5.0)
+go.mod                                       - Dependencies (Plugin Framework 1.16.1, go-contextforge 0.6.0)
 ```
 
 ## Important Implementation Details
