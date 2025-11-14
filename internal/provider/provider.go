@@ -167,6 +167,9 @@ func (p *ContextForgeProvider) Configure(ctx context.Context, req provider.Confi
 func (p *ContextForgeProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewGatewayDataSource,
+		NewResourceDataSource,
+		NewServerDataSource,
+		NewToolDataSource,
 	}
 }
 
