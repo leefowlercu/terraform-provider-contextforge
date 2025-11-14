@@ -101,6 +101,9 @@ echo "   Test Gateway ID File: $PROJECT_ROOT/tmp/contextforge-test-gateway-id.tx
 echo "   Test Server ID File: $PROJECT_ROOT/tmp/contextforge-test-server-id.txt"
 echo "   Test Tool ID File: $PROJECT_ROOT/tmp/contextforge-test-tool-id.txt"
 echo "   Test Resource ID File: $PROJECT_ROOT/tmp/contextforge-test-resource-id.txt"
+echo "   Test Team ID File: $PROJECT_ROOT/tmp/contextforge-test-team-id.txt"
+echo "   Test Agent ID File: $PROJECT_ROOT/tmp/contextforge-test-agent-id.txt"
+echo "   Test Prompt ID File: $PROJECT_ROOT/tmp/contextforge-test-prompt-id.txt"
 echo ""
 
 # Get version info
@@ -256,6 +259,101 @@ if [ $? -eq 0 ]; then
   fi
 else
   echo "⚠️  Failed to create test resource"
+fi
+echo ""
+
+# Create test team
+echo "🔧 Creating test team..."
+TEAM_RESPONSE=$(curl -L -s -X POST http://localhost:8000/teams \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "test-team",
+    "slug": "test-team",
+    "description": "Test team for integration tests"
+  }')
+
+if [ $? -eq 0 ]; then
+  TEAM_ID=$(echo "$TEAM_RESPONSE" | jq -r '.id // empty')
+
+  if [ -n "$TEAM_ID" ] && [ "$TEAM_ID" != "null" ]; then
+    echo "$TEAM_ID" > "$PROJECT_ROOT/tmp/contextforge-test-team-id.txt"
+    echo "✅ Test team created successfully"
+    echo "   Team ID: $TEAM_ID"
+  else
+    echo "⚠️  Failed to extract team ID from response"
+    echo "   Response: $TEAM_RESPONSE"
+  fi
+else
+  echo "⚠️  Failed to create test team"
+fi
+echo ""
+
+# Create test agent
+echo "🔧 Creating test agent..."
+AGENT_RESPONSE=$(curl -s -X POST http://localhost:8000/a2a \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent": {
+      "name": "test-agent",
+      "description": "Test agent for integration tests",
+      "endpoint_url": "http://localhost:9000/agent",
+      "enabled": true,
+      "tags": ["test", "integration"]
+    }
+  }')
+
+if [ $? -eq 0 ]; then
+  AGENT_ID=$(echo "$AGENT_RESPONSE" | jq -r '.id // empty')
+
+  if [ -n "$AGENT_ID" ] && [ "$AGENT_ID" != "null" ]; then
+    echo "$AGENT_ID" > "$PROJECT_ROOT/tmp/contextforge-test-agent-id.txt"
+    echo "✅ Test agent created successfully"
+    echo "   Agent ID: $AGENT_ID"
+  else
+    echo "⚠️  Failed to extract agent ID from response"
+    echo "   Response: $AGENT_RESPONSE"
+  fi
+else
+  echo "⚠️  Failed to create test agent"
+fi
+echo ""
+
+# Create test prompt
+echo "🔧 Creating test prompt..."
+PROMPT_RESPONSE=$(curl -s -X POST http://localhost:8000/prompts \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": {
+      "name": "test-prompt",
+      "description": "Test prompt for integration tests",
+      "template": "Hello {{name}}, this is a test prompt.",
+      "arguments": [
+        {
+          "name": "name",
+          "description": "Name to greet",
+          "required": true
+        }
+      ],
+      "tags": ["test", "integration"]
+    }
+  }')
+
+if [ $? -eq 0 ]; then
+  PROMPT_ID=$(echo "$PROMPT_RESPONSE" | jq -r '.id // empty')
+
+  if [ -n "$PROMPT_ID" ] && [ "$PROMPT_ID" != "null" ]; then
+    echo "$PROMPT_ID" > "$PROJECT_ROOT/tmp/contextforge-test-prompt-id.txt"
+    echo "✅ Test prompt created successfully"
+    echo "   Prompt ID: $PROMPT_ID"
+  else
+    echo "⚠️  Failed to extract prompt ID from response"
+    echo "   Response: $PROMPT_RESPONSE"
+  fi
+else
+  echo "⚠️  Failed to create test prompt"
 fi
 echo ""
 
