@@ -166,9 +166,12 @@ func (p *ContextForgeProvider) Configure(ctx context.Context, req provider.Confi
 // DataSources defines the data sources implemented in the provider.
 func (p *ContextForgeProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		NewAgentDataSource,
 		NewGatewayDataSource,
+		NewPromptDataSource,
 		NewResourceDataSource,
 		NewServerDataSource,
+		NewTeamDataSource,
 		NewToolDataSource,
 	}
 }
