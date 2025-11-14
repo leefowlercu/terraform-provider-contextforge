@@ -111,6 +111,54 @@ The tool data source provides read-only access to ContextForge tool resources:
 
 **Acceptance tests** verify the data source with a real tool created during integration test setup (see `internal/provider/data_source_tool_test.go`).
 
+**contextforge_team** - Retrieves team information by ID (`internal/provider/data_source_team.go`)
+
+The team data source provides read-only access to ContextForge team resources:
+
+- **Type conversions** handled for standard types:
+  - `*int` → `types.Int64` using `tfconv.Int64Ptr()` for max_members field
+  - Timestamps → `types.String` in RFC3339 format using snake_case field names (created_at, updated_at)
+- **Key attributes**: id, name, slug, description, is_personal, visibility, max_members, member_count, is_active, created_by
+- **Timestamps**: created_at, updated_at
+- **Unique characteristic**: Uses snake_case timestamps (created_at, updated_at) unlike other resources
+
+**Acceptance tests** verify the data source with a real team created during integration test setup (see `internal/provider/data_source_team_test.go`).
+
+**contextforge_agent** - Retrieves agent information by ID (`internal/provider/data_source_agent.go`)
+
+The agent data source provides read-only access to ContextForge A2A agent resources:
+
+- **Type conversions** handled for complex types:
+  - `map[string]any` → `types.Dynamic` for capabilities and config fields
+  - Nested metrics object with performance statistics
+  - Timestamps → `types.String` in RFC3339 format
+- **Key attributes**: id, name, description, endpoint_url, enabled, capabilities, config, metrics
+- **Metrics fields**: total_requests, successful_requests, failed_requests, failure_rate, min_response_time, max_response_time, avg_response_time, last_request_time
+- **Organizational fields**: team_id, team, owner_email, visibility, tags
+- **Unique characteristic**: Has two Dynamic type fields (capabilities, config) and uses agent-specific metrics field names (total_requests vs total_executions)
+
+**Acceptance tests** verify the data source with a real agent created during integration test setup (see `internal/provider/data_source_agent_test.go`).
+
+**contextforge_prompt** - Retrieves prompt information by ID (`internal/provider/data_source_prompt.go`)
+
+The prompt data source provides read-only access to ContextForge prompt resources:
+
+- **Type conversions** handled for complex types:
+  - Integer ID (types.Int64) - only data source using integer ID instead of string
+  - Nested arguments list with promptArgumentModel objects (name, description, required)
+  - Nested metrics object with performance statistics
+  - Timestamps → `types.String` in RFC3339 format
+- **Key attributes**: id, name, description, template, arguments, is_active, tags, metrics
+- **Arguments structure**: List of objects with name, description, required fields
+- **Metrics fields**: total_executions, successful_executions, failed_executions, failure_rate, min_response_time, max_response_time, avg_response_time, last_execution_time
+- **Organizational fields**: team_id, team, owner_email, visibility
+- **Unique characteristics**:
+  - Only data source with integer ID (types.Int64)
+  - Uses List() API endpoint and filters by ID (no dedicated Get metadata endpoint available)
+  - Has nested arguments list for prompt parameters
+
+**Acceptance tests** verify the data source with a real prompt created during integration test setup (see `internal/provider/data_source_prompt_test.go`).
+
 **Resources**: No managed resources are currently implemented. The `Resources()` method returns `nil`.
 
 ### Binary Versioning
@@ -196,6 +244,21 @@ The setup script creates a complete test environment:
      - Name: "test-resource"
      - Description: "Test resource for integration tests"
      - Resource ID saved: `tmp/contextforge-test-resource-id.txt`
+   - **Test Team**: Team for testing
+     - Name: "test-team"
+     - Slug: "test-team"
+     - Description: "Test team for integration tests"
+     - Team ID saved: `tmp/contextforge-test-team-id.txt`
+   - **Test Agent**: A2A agent for testing
+     - Name: "test-agent"
+     - Endpoint URL: "http://localhost:9000/agent"
+     - Description: "Test agent for integration tests"
+     - Agent ID saved: `tmp/contextforge-test-agent-id.txt`
+   - **Test Prompt**: Prompt for testing
+     - Name: "test-prompt"
+     - Template: "Hello {{name}}, this is a test prompt."
+     - Description: "Test prompt for integration tests"
+     - Prompt ID saved: `tmp/contextforge-test-prompt-id.txt`
    - Used by acceptance tests to verify data source functionality
 
 ### Debugging the Provider

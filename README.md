@@ -11,9 +11,12 @@ Terraform provider for IBM ContextForge MCP Gateway management. Manages virtual 
   - [Authentication](#authentication)
   - [Configuration Example](#configuration-example)
 - [Data Sources](#data-sources)
+  - [contextforge_agent](#contextforge_agent)
   - [contextforge_gateway](#contextforge_gateway)
-  - [contextforge_server](#contextforge_server)
+  - [contextforge_prompt](#contextforge_prompt)
   - [contextforge_resource](#contextforge_resource)
+  - [contextforge_server](#contextforge_server)
+  - [contextforge_team](#contextforge_team)
   - [contextforge_tool](#contextforge_tool)
 - [Resources](#resources)
 - [Development](#development)
@@ -82,6 +85,48 @@ terraform plan
 
 ## Data Sources
 
+### contextforge_agent
+
+Retrieves information about an existing ContextForge A2A agent by ID.
+
+**Example Usage:**
+
+```hcl
+data "contextforge_agent" "example" {
+  id = "agent-id-12345"
+}
+
+output "agent_info" {
+  value = {
+    name         = data.contextforge_agent.example.name
+    endpoint_url = data.contextforge_agent.example.endpoint_url
+    enabled      = data.contextforge_agent.example.enabled
+  }
+}
+
+output "agent_metrics" {
+  value = data.contextforge_agent.example.metrics
+}
+```
+
+**Key Attributes:**
+
+- `id` - (Required) The unique identifier of the agent to retrieve
+- `name` - Agent name
+- `description` - Agent description
+- `endpoint_url` - Agent endpoint URL
+- `enabled` - Whether the agent is enabled
+- `capabilities` - Agent capabilities (dynamic object)
+- `config` - Agent configuration (dynamic object)
+- `metrics` - Nested object with performance metrics (total_requests, successful_requests, failed_requests, failure_rate, response times)
+- `tags` - Agent tags
+- `team_id` - Team ID
+- `visibility` - Visibility setting (public, private, etc.)
+- `created_at` - Agent creation timestamp
+- `updated_at` - Agent last update timestamp
+
+See the Terraform Registry documentation for the complete attribute reference.
+
 ### contextforge_gateway
 
 Retrieves information about an existing ContextForge MCP Gateway by ID.
@@ -119,9 +164,56 @@ output "gateway_status" {
 
 See the Terraform Registry documentation for the complete attribute reference.
 
-### contextforge_server
+### contextforge_prompt
 
-Retrieves information about an existing ContextForge virtual server by ID.
+Retrieves information about an existing ContextForge prompt by ID.
+
+**Example Usage:**
+
+```hcl
+data "contextforge_prompt" "example" {
+  id = 123
+}
+
+output "prompt_info" {
+  value = {
+    name      = data.contextforge_prompt.example.name
+    template  = data.contextforge_prompt.example.template
+    is_active = data.contextforge_prompt.example.is_active
+  }
+}
+
+output "prompt_arguments" {
+  value = data.contextforge_prompt.example.arguments
+}
+
+output "prompt_metrics" {
+  value = data.contextforge_prompt.example.metrics
+}
+```
+
+**Key Attributes:**
+
+- `id` - (Required) The unique identifier of the prompt to retrieve (integer)
+- `name` - Prompt name
+- `description` - Prompt description
+- `template` - Prompt template with parameter placeholders
+- `arguments` - List of prompt arguments/parameters (name, description, required)
+- `is_active` - Whether the prompt is active
+- `tags` - Prompt tags
+- `metrics` - Nested object with performance metrics (total_executions, successful_executions, failed_executions, failure_rate, response times)
+- `team_id` - Team ID
+- `team` - Team name
+- `owner_email` - Owner email address
+- `visibility` - Visibility setting (public, private, etc.)
+- `created_at` - Prompt creation timestamp
+- `updated_at` - Prompt last update timestamp
+
+See the Terraform Registry documentation for the complete attribute reference.
+
+### contextforge_resource
+
+Retrieves information about an existing ContextForge resource by ID.
 
 **Example Usage:**
 
@@ -198,6 +290,45 @@ output "resource_metrics" {
 - `visibility` - Visibility setting (public, private, etc.)
 - `created_at` - Resource creation timestamp
 - `updated_at` - Resource last update timestamp
+
+See the Terraform Registry documentation for the complete attribute reference.
+
+### contextforge_team
+
+Retrieves information about an existing ContextForge team by ID.
+
+**Example Usage:**
+
+```hcl
+data "contextforge_team" "example" {
+  id = "team-id-12345"
+}
+
+output "team_info" {
+  value = {
+    name         = data.contextforge_team.example.name
+    slug         = data.contextforge_team.example.slug
+    is_personal  = data.contextforge_team.example.is_personal
+    is_active    = data.contextforge_team.example.is_active
+    member_count = data.contextforge_team.example.member_count
+  }
+}
+```
+
+**Key Attributes:**
+
+- `id` - (Required) The unique identifier of the team to retrieve
+- `name` - Team name
+- `slug` - Team slug (URL-friendly identifier)
+- `description` - Team description
+- `is_personal` - Whether this is a personal team
+- `visibility` - Visibility setting (public, private, etc.)
+- `max_members` - Maximum number of members allowed in the team
+- `member_count` - Current number of members in the team
+- `is_active` - Whether the team is active
+- `created_by` - Email address of the user who created the team
+- `created_at` - Team creation timestamp (RFC3339 format)
+- `updated_at` - Team last update timestamp (RFC3339 format)
 
 See the Terraform Registry documentation for the complete attribute reference.
 
@@ -363,6 +494,21 @@ The integration test setup script creates a complete test environment:
      - Name: "test-resource"
      - Description: "Test resource for integration tests"
      - Resource ID saved: `tmp/contextforge-test-resource-id.txt`
+   - **Test Team**: Team for testing
+     - Name: "test-team"
+     - Slug: "test-team"
+     - Description: "Test team for integration tests"
+     - Team ID saved: `tmp/contextforge-test-team-id.txt`
+   - **Test Agent**: A2A agent for testing
+     - Name: "test-agent"
+     - Endpoint URL: "http://localhost:9000/agent"
+     - Description: "Test agent for integration tests"
+     - Agent ID saved: `tmp/contextforge-test-agent-id.txt`
+   - **Test Prompt**: Prompt for testing
+     - Name: "test-prompt"
+     - Template: "Hello {{name}}, this is a test prompt."
+     - Description: "Test prompt for integration tests"
+     - Prompt ID saved: `tmp/contextforge-test-prompt-id.txt`
    - Used by acceptance tests to verify data source functionality
 
 ## Makefile Targets

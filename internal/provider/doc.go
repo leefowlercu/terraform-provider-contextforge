@@ -105,6 +105,42 @@
 //	    resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 //	}
 //
+// # List and Filter Pattern
+//
+// Some data sources use List() + filter instead of Get() when:
+//
+//   - The API has no dedicated Get metadata endpoint
+//   - The Get endpoint has authentication or permission issues
+//
+// Example (used by contextforge_resource, contextforge_prompt, contextforge_team):
+//
+//	func (d *resourceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+//	    // ... parse config ...
+//
+//	    // List all resources and filter by ID
+//	    resources, _, err := d.client.Resources.List(ctx, nil)
+//	    if err != nil {
+//	        resp.Diagnostics.AddError("Failed to List Resources", err.Error())
+//	        return
+//	    }
+//
+//	    var resource *contextforge.Resource
+//	    targetID := data.ID.ValueString()
+//	    for _, r := range resources {
+//	        if r.ID.String() == targetID {
+//	            resource = r
+//	            break
+//	        }
+//	    }
+//
+//	    if resource == nil {
+//	        resp.Diagnostics.AddError("Resource Not Found", fmt.Sprintf("Unable to find resource with ID %s", targetID))
+//	        return
+//	    }
+//
+//	    // ... map to model and save state ...
+//	}
+//
 // # Resource Implementation Pattern
 //
 // Resources manage the lifecycle of ContextForge objects (create, read, update, delete).
