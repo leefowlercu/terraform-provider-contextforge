@@ -39,3 +39,4 @@ terraform-provider-contextforge
 
 # Goreleaser files
 dist/
+.next-version
