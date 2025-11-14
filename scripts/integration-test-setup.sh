@@ -98,6 +98,9 @@ echo "   JWT Token File: $PROJECT_ROOT/tmp/contextforge-test-token.txt"
 echo "   MCP Time Server: http://localhost:8002"
 echo "   Time Server PID File: $PROJECT_ROOT/tmp/time-server.pid"
 echo "   Test Gateway ID File: $PROJECT_ROOT/tmp/contextforge-test-gateway-id.txt"
+echo "   Test Server ID File: $PROJECT_ROOT/tmp/contextforge-test-server-id.txt"
+echo "   Test Tool ID File: $PROJECT_ROOT/tmp/contextforge-test-tool-id.txt"
+echo "   Test Resource ID File: $PROJECT_ROOT/tmp/contextforge-test-resource-id.txt"
 echo ""
 
 # Get version info
@@ -153,6 +156,106 @@ if [ $? -eq 0 ]; then
   fi
 else
   echo "⚠️  Failed to create test gateway"
+fi
+echo ""
+
+# Create test server
+echo "🔧 Creating test server..."
+SERVER_RESPONSE=$(curl -s -X POST http://localhost:8000/servers \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "server": {
+      "name": "test-server",
+      "description": "Test server for integration tests",
+      "tags": ["test", "integration"]
+    }
+  }')
+
+if [ $? -eq 0 ]; then
+  SERVER_ID=$(echo "$SERVER_RESPONSE" | jq -r '.id // empty')
+
+  if [ -n "$SERVER_ID" ] && [ "$SERVER_ID" != "null" ]; then
+    echo "$SERVER_ID" > "$PROJECT_ROOT/tmp/contextforge-test-server-id.txt"
+    echo "✅ Test server created successfully"
+    echo "   Server ID: $SERVER_ID"
+  else
+    echo "⚠️  Failed to extract server ID from response"
+    echo "   Response: $SERVER_RESPONSE"
+  fi
+else
+  echo "⚠️  Failed to create test server"
+fi
+echo ""
+
+# Create test tool
+echo "🔧 Creating test tool..."
+TOOL_RESPONSE=$(curl -s -X POST http://localhost:8000/tools \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tool": {
+      "name": "test-tool",
+      "description": "Test tool for integration tests",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Message to process"
+          }
+        },
+        "required": ["message"]
+      },
+      "tags": ["test", "integration"]
+    }
+  }')
+
+if [ $? -eq 0 ]; then
+  TOOL_ID=$(echo "$TOOL_RESPONSE" | jq -r '.id // empty')
+
+  if [ -n "$TOOL_ID" ] && [ "$TOOL_ID" != "null" ]; then
+    echo "$TOOL_ID" > "$PROJECT_ROOT/tmp/contextforge-test-tool-id.txt"
+    echo "✅ Test tool created successfully"
+    echo "   Tool ID: $TOOL_ID"
+  else
+    echo "⚠️  Failed to extract tool ID from response"
+    echo "   Response: $TOOL_RESPONSE"
+  fi
+else
+  echo "⚠️  Failed to create test tool"
+fi
+echo ""
+
+# Create test resource
+echo "🔧 Creating test resource..."
+RESOURCE_RESPONSE=$(curl -s -X POST http://localhost:8000/resources \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "resource": {
+      "uri": "test://integration/resource",
+      "name": "test-resource",
+      "description": "Test resource for integration tests",
+      "content": "This is test content for integration testing",
+      "mimeType": "text/plain",
+      "tags": ["test", "integration"]
+    }
+  }')
+
+if [ $? -eq 0 ]; then
+  RESOURCE_ID=$(echo "$RESOURCE_RESPONSE" | jq -r '.id // empty')
+
+  if [ -n "$RESOURCE_ID" ] && [ "$RESOURCE_ID" != "null" ]; then
+    echo "$RESOURCE_ID" > "$PROJECT_ROOT/tmp/contextforge-test-resource-id.txt"
+    echo "✅ Test resource created successfully"
+    echo "   Resource ID: $RESOURCE_ID"
+  else
+    echo "⚠️  Failed to extract resource ID from response"
+    echo "   Response: $RESOURCE_RESPONSE"
+  fi
+else
+  echo "⚠️  Failed to create test resource"
 fi
 echo ""
 
