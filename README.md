@@ -541,4 +541,4 @@ Contributions are welcome. When contributing:
 
 **Dependencies:**
 - [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1
-- [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.6.0 - Go client library for ContextForge MCP Gateway
+- [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.7.0 - Go client library for ContextForge MCP Gateway

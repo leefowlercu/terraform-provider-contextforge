@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Terraform provider for IBM ContextForge MCP Gateway built using the Terraform Plugin Framework v1.16.1. The provider communicates with the ContextForge MCP Gateway API via the `go-contextforge` v0.6.0 client library.
+This is a Terraform provider for IBM ContextForge MCP Gateway built using the Terraform Plugin Framework v1.16.1. The provider communicates with the ContextForge MCP Gateway API via the `go-contextforge` v0.7.0 client library.
 
 **Provider Address**: `registry.terraform.io/hashicorp/contextforge`
 
@@ -159,7 +159,91 @@ The prompt data source provides read-only access to ContextForge prompt resource
 
 **Acceptance tests** verify the data source with a real prompt created during integration test setup (see `internal/provider/data_source_prompt_test.go`).
 
-**Resources**: No managed resources are currently implemented. The `Resources()` method returns `nil`.
+### Implemented Resources
+
+**contextforge_gateway** - Manages gateway resources (`internal/provider/resource_gateway.go`)
+
+The gateway resource provides full CRUD operations for ContextForge MCP Gateway resources:
+
+- **Type conversions** handled by `internal/tfconv` package for complex types:
+  - `map[string]any` → `types.Dynamic` for capabilities, oauth_config
+  - `[]map[string]string` → `types.List` of `types.Map` for auth_headers
+  - Pointer strings for most fields
+- **Key attributes**: name (required), url (required), transport (required), description, enabled, auth fields (9 types), tags, team_id, visibility
+- **Read-only fields**: id, reachable, capabilities, timestamps (3), metadata (16 fields), slug, version
+- **Special considerations**: Update followed by GET workaround for API bug
+
+**Acceptance tests** include basic CRUD, import, and validation tests (see `internal/provider/resource_gateway_test.go`). Note: Basic and import tests skipped due to upstream requirement that gateway URLs must be reachable.
+
+**contextforge_tool** - Manages tool resources (`internal/provider/resource_tool.go`)
+
+The tool resource provides full CRUD operations for ContextForge tool resources:
+
+- **Type conversions** handled for complex types:
+  - `map[string]any` → `types.Dynamic` for input_schema (JSON Schema)
+  - Empty schema filtering with `isEmptyInputSchema()` helper
+- **Key attributes**: name (required), description, input_schema (Dynamic), enabled, tags, team_id, visibility
+- **Read-only fields**: id, timestamps (2)
+- **Special considerations**: Update followed by GET workaround for API bug
+
+**Acceptance tests** verify resource functionality (see `internal/provider/resource_tool_test.go`). Note: 4 tests skipped due to upstream bugs in tool update API (see `docs/upstream-bugs/contextforge-tool-update-bug.md`).
+
+**contextforge_server** - Manages virtual server resources (`internal/provider/resource_server.go`)
+
+The server resource provides full CRUD operations for ContextForge virtual server resources:
+
+- **Type conversions** handled for association fields:
+  - associated_tools: `[]string` (no conversion)
+  - associated_resources: `[]int64` (TF) → `[]string` (API) → `[]int` (response) → `[]int64` (state)
+  - associated_prompts: `[]int64` (TF) → `[]string` (API) → `[]int` (response) → `[]int64` (state)
+  - associated_a2a_agents: `[]string` (no conversion)
+  - Helper functions: `convertInt64SliceToString()`, `convertIntSliceToInt64()`
+- **Key attributes**: name (required), description, icon, tags, associations (4 types), team_id, visibility
+- **Read-only fields**: id, is_active, metrics (nested object with 8 fields), team, owner_email, timestamps (2), metadata (10 fields), version
+- **Metrics nested object**: total_executions, successful_executions, failed_executions, failure_rate, response times (min/max/avg), last_execution_time
+- **Special considerations**: Update followed by GET workaround for API bug
+
+**Acceptance tests** verify resource functionality with 5 passing tests (see `internal/provider/resource_server_test.go`). Tests cover basic CRUD, complete configuration, updates, import, and validation.
+
+**contextforge_agent** - Manages A2A (Agent-to-Agent) agent resources (`internal/provider/resource_agent.go`)
+
+The agent resource provides full CRUD operations for ContextForge A2A agent resources:
+
+- **Type conversions** handled for Dynamic fields:
+  - capabilities: `map[string]any` → `types.Dynamic` (computed, read-only)
+  - config: `map[string]any` ↔ `types.Dynamic` (optional, user-configurable)
+  - Helper functions: `tfconv.ConvertMapToObjectValue()`, `tfconv.ConvertObjectValueToMap()`
+- **Key attributes**: name (required), endpoint_url (required), description, agent_type, protocol_version, config (Dynamic), auth_type, enabled, tags, team_id, visibility
+- **Read-only fields**: id, slug, capabilities (Dynamic), reachable, owner_email, metrics (nested object with 8 fields), timestamps (3), metadata (10 fields), version
+- **Metrics nested object**: total_executions, successful_executions, failed_executions, failure_rate, response times (min/max/avg), last_execution_time
+- **SDK types**: Uses `AgentCreate` for Create operations, `AgentUpdate` for Update operations
+- **Plan modifiers**: Optional+computed fields use `UseStateForUnknown()` to prevent drift detection
+- **Special considerations**:
+  - No Update+GET workaround needed (API works correctly)
+  - Empty config objects cause drift issues (documented limitation)
+
+**Acceptance tests** verify resource functionality with 1 passing test (see `internal/provider/resource_agent_test.go`). Tests cover validation. Note: 4 tests skipped due to API behavior with empty config objects and computed fields showing as changed during updates/imports.
+
+**contextforge_resource** - Manages resource resources (`internal/provider/resource_resource.go`)
+
+The resource resource provides full CRUD operations for ContextForge resource entities:
+
+- **Type conversions** handled for FlexibleID and integer fields:
+  - ID: `*FlexibleID` → `types.String` using `.String()` method
+  - Size: `*int` → `types.Int64` using `tfconv.Int64Ptr()`
+  - Version: `*int` → `types.Int64` using `tfconv.Int64Ptr()`
+- **Key attributes**: uri (required), name (required), content (required, write-only), description, mime_type, tags, team_id, visibility
+- **Read-only fields**: id (FlexibleID), size, is_active, metrics (nested object with 8 fields), team, owner_email, timestamps (2), metadata (10 fields), version
+- **Metrics nested object**: total_executions, successful_executions, failed_executions, failure_rate, response times (min/max/avg), last_execution_time
+- **SDK types**: Uses `ResourceCreate` for Create operations, `ResourceUpdate` for Update operations
+- **Special characteristics**:
+  - Uses List() API endpoint and filters by ID (no dedicated Get() endpoint available)
+  - FlexibleID can be string or integer, converted via `.String()` method
+  - Content field is required for creation but not returned by API (write-only)
+  - Size and IsActive are computed-only fields (backend-managed)
+- **Plan modifiers**: team_id and visibility use `RequiresReplace()` (can only be set at creation)
+
+**Acceptance tests** are implemented (see `internal/provider/resource_resource_test.go`). Tests cover basic CRUD, complete configuration, updates, import, and validation. Note: Some tests may experience transient failures during post-apply refresh due to timing/token issues.
 
 ### Binary Versioning
 
@@ -223,6 +307,14 @@ The setup script creates a complete test environment:
    - Process ID: `tmp/time-server.pid`
    - Logs: `tmp/time-server.log`
    - Why needed: ContextForge validates gateway connectivity during creation
+
+2a. **Additional MCP Time Servers** (ports 8003-8004)
+   - Port 8003: Used by `TestAccGatewayResource_basic` for CRUD testing
+   - Port 8004: Used by `TestAccGatewayResource_import` for import testing
+   - Same `mcpgateway.translate` wrapper pattern as port 8002
+   - Process IDs: `tmp/time-server-8003.pid`, `tmp/time-server-8004.pid`
+   - Logs: `tmp/time-server-8003.log`, `tmp/time-server-8004.log`
+   - Why needed: Gateway resource tests create new gateways that must be reachable
 
 3. **Test Resources**
    - **Test Gateway**: Created via ContextForge API pointing to time server
@@ -354,7 +446,7 @@ scripts/integration-test-setup.sh            - Gateway startup automation, MCP s
 scripts/integration-test-teardown.sh         - Gateway cleanup
 scripts/bump-version.sh                      - Version bumping utility (used by release targets)
 test/terraform/                              - Manual testing Terraform configurations
-go.mod                                       - Dependencies (Plugin Framework 1.16.1, go-contextforge 0.6.0)
+go.mod                                       - Dependencies (Plugin Framework 1.16.1, go-contextforge 0.7.0)
 ```
 
 ## Important Implementation Details

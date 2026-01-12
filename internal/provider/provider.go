@@ -178,5 +178,11 @@ func (p *ContextForgeProvider) DataSources(ctx context.Context) []func() datasou
 
 // Resources defines the resources implemented in the provider.
 func (p *ContextForgeProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewAgentResource,
+		NewGatewayResource,
+		NewResourceResource,
+		NewServerResource,
+		NewToolResource,
+	}
 }

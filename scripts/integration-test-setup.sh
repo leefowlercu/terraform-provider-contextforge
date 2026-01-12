@@ -134,6 +134,43 @@ fi
 echo "✅ MCP time server is ready!"
 echo ""
 
+# Start additional MCP time servers for gateway resource tests
+echo "⏰ Starting additional MCP time servers for gateway resource tests..."
+
+# Port 8003 for basic gateway resource test
+uvx --from mcp-contextforge-gateway python3 -m mcpgateway.translate \
+  --stdio "uvx mcp-server-time --local-timezone=UTC" \
+  --port 8003 > "$PROJECT_ROOT/tmp/time-server-8003.log" 2>&1 &
+TIME_SERVER_8003_PID=$!
+echo $TIME_SERVER_8003_PID > "$PROJECT_ROOT/tmp/time-server-8003.pid"
+
+# Port 8004 for import gateway resource test
+uvx --from mcp-contextforge-gateway python3 -m mcpgateway.translate \
+  --stdio "uvx mcp-server-time --local-timezone=UTC" \
+  --port 8004 > "$PROJECT_ROOT/tmp/time-server-8004.log" 2>&1 &
+TIME_SERVER_8004_PID=$!
+echo $TIME_SERVER_8004_PID > "$PROJECT_ROOT/tmp/time-server-8004.pid"
+
+echo "⏳ Waiting for additional MCP time servers to be ready..."
+sleep 5
+
+# Verify processes are still running
+for port in 8003 8004; do
+  pid=$(cat "$PROJECT_ROOT/tmp/time-server-$port.pid")
+  if ! ps -p $pid > /dev/null 2>&1; then
+    echo "❌ Time server on port $port died"
+    cat "$PROJECT_ROOT/tmp/time-server-$port.log"
+    kill $GATEWAY_PID 2>/dev/null || true
+    kill $TIME_SERVER_PID 2>/dev/null || true
+    exit 1
+  fi
+done
+
+echo "✅ Additional MCP time servers are ready!"
+echo "   Port 8003: PID $TIME_SERVER_8003_PID"
+echo "   Port 8004: PID $TIME_SERVER_8004_PID"
+echo ""
+
 # Create test gateway pointing to time server
 echo "🔧 Creating test gateway..."
 GATEWAY_RESPONSE=$(curl -s -X POST http://localhost:8000/gateways \

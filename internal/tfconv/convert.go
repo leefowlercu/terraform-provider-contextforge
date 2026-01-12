@@ -112,6 +112,35 @@ func ConvertToAttrValue(v any) (attr.Value, error) {
 	}
 }
 
+// ConvertObjectValueToMap converts an attr.Value (from types.Dynamic) back to a Go map[string]any.
+// This is the reverse of ConvertMapToObjectValue and is used when preparing data for API calls.
+//
+// The function handles the conversion of Terraform's type system back to JSON-like structures
+// that can be sent to APIs.
+//
+// Example usage:
+//
+//	schemaMap, err := tfconv.ConvertObjectValueToMap(ctx, data.InputSchema.UnderlyingValue())
+//	if err != nil {
+//	    return err
+//	}
+//	tool.InputSchema = schemaMap
+func ConvertObjectValueToMap(ctx context.Context, v attr.Value) (map[string]any, error) {
+	// Convert to JSON to normalize the structure
+	jsonData, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal attr.Value; %w", err)
+	}
+
+	// Parse back to map[string]any
+	var result map[string]any
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal to map; %w", err)
+	}
+
+	return result, nil
+}
+
 // Int64Ptr converts an int to *int64 pointer.
 //
 // This helper is useful when working with API types that use int but Terraform

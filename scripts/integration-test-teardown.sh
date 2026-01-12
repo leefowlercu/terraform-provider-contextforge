@@ -19,6 +19,19 @@ if [ -f "$PROJECT_ROOT/tmp/time-server.pid" ]; then
     fi
 fi
 
+# Stop additional MCP time servers
+for port in 8003 8004; do
+  if [ -f "$PROJECT_ROOT/tmp/time-server-$port.pid" ]; then
+    SERVER_PID=$(cat "$PROJECT_ROOT/tmp/time-server-$port.pid")
+    if ps -p $SERVER_PID > /dev/null 2>&1; then
+      echo "🛑 Stopping MCP time server on port $port (PID: $SERVER_PID)..."
+      kill $SERVER_PID 2>/dev/null || true
+      sleep 1
+      kill -9 $SERVER_PID 2>/dev/null || true
+    fi
+  fi
+done
+
 # Stop ContextForge gateway process
 if [ -f "$PROJECT_ROOT/tmp/contextforge-test.pid" ]; then
     PID=$(cat "$PROJECT_ROOT/tmp/contextforge-test.pid")
