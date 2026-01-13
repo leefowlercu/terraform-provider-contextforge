@@ -21,7 +21,7 @@ var _ datasource.DataSource = &promptDataSource{}
 var _ datasource.DataSourceWithConfigure = &promptDataSource{}
 
 type promptDataSourceModel struct {
-	ID          types.Int64  `tfsdk:"id"`
+	ID          types.String `tfsdk:"id"`
 	Name        types.String `tfsdk:"name"`
 	Description types.String `tfsdk:"description"`
 	Template    types.String `tfsdk:"template"`
@@ -80,7 +80,7 @@ func (d *promptDataSource) Schema(ctx context.Context, req datasource.SchemaRequ
 		Description:         "Data source for looking up a ContextForge prompt by ID",
 
 		Attributes: map[string]schema.Attribute{
-			"id": schema.Int64Attribute{
+			"id": schema.StringAttribute{
 				MarkdownDescription: "Prompt ID for lookup",
 				Description:         "Prompt ID for lookup",
 				Required:            true,
@@ -193,7 +193,7 @@ func (d *promptDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	}
 
 	var prompt *contextforge.Prompt
-	targetID := int(data.ID.ValueInt64())
+	targetID := data.ID.ValueString()
 	for _, p := range prompts {
 		if p.ID == targetID {
 			prompt = p
@@ -202,11 +202,11 @@ func (d *promptDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	}
 
 	if prompt == nil {
-		resp.Diagnostics.AddError("Prompt Not Found", fmt.Sprintf("Unable to find prompt with ID %d", targetID))
+		resp.Diagnostics.AddError("Prompt Not Found", fmt.Sprintf("Unable to find prompt with ID %s", targetID))
 		return
 	}
 
-	data.ID = types.Int64Value(int64(prompt.ID))
+	data.ID = types.StringValue(prompt.ID)
 	data.Name = types.StringValue(prompt.Name)
 	data.Description = types.StringPointerValue(prompt.Description)
 	data.Template = types.StringValue(prompt.Template)
@@ -267,7 +267,7 @@ func (d *promptDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	}
 
 	if prompt.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, prompt.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(prompt.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {

@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -133,14 +132,14 @@ func (r *serverResource) Schema(ctx context.Context, req resource.SchemaRequest,
 			"associated_resources": schema.ListAttribute{
 				MarkdownDescription: "List of associated resource IDs",
 				Description:         "List of associated resource IDs",
-				ElementType:         types.Int64Type,
+				ElementType:         types.StringType,
 				Optional:            true,
 				Computed:            true,
 			},
 			"associated_prompts": schema.ListAttribute{
 				MarkdownDescription: "List of associated prompt IDs",
 				Description:         "List of associated prompt IDs",
-				ElementType:         types.Int64Type,
+				ElementType:         types.StringType,
 				Optional:            true,
 				Computed:            true,
 			},
@@ -367,26 +366,26 @@ func (r *serverResource) Create(ctx context.Context, req resource.CreateRequest,
 		server.AssociatedTools = tools
 	}
 
-	// Convert associated resources (int64 → string)
+	// Convert associated resources (string IDs)
 	if !data.AssociatedResources.IsNull() && !data.AssociatedResources.IsUnknown() {
-		var resources []int64
+		var resources []string
 		diags := data.AssociatedResources.ElementsAs(ctx, &resources, false)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		server.AssociatedResources = convertInt64SliceToString(resources)
+		server.AssociatedResources = resources
 	}
 
-	// Convert associated prompts (int64 → string)
+	// Convert associated prompts (string IDs)
 	if !data.AssociatedPrompts.IsNull() && !data.AssociatedPrompts.IsUnknown() {
-		var prompts []int64
+		var prompts []string
 		diags := data.AssociatedPrompts.ElementsAs(ctx, &prompts, false)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		server.AssociatedPrompts = convertInt64SliceToString(prompts)
+		server.AssociatedPrompts = prompts
 	}
 
 	// Convert associated A2A agents (string IDs)
@@ -438,21 +437,19 @@ func (r *serverResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 
 	if createdServer.AssociatedResources != nil {
-		resourcesInt64 := convertIntSliceToInt64(createdServer.AssociatedResources)
-		resourcesList, diags := types.ListValueFrom(ctx, types.Int64Type, resourcesInt64)
+		resourcesList, diags := types.ListValueFrom(ctx, types.StringType, createdServer.AssociatedResources)
 		resp.Diagnostics.Append(diags...)
 		data.AssociatedResources = resourcesList
 	} else {
-		data.AssociatedResources = types.ListNull(types.Int64Type)
+		data.AssociatedResources = types.ListNull(types.StringType)
 	}
 
 	if createdServer.AssociatedPrompts != nil {
-		promptsInt64 := convertIntSliceToInt64(createdServer.AssociatedPrompts)
-		promptsList, diags := types.ListValueFrom(ctx, types.Int64Type, promptsInt64)
+		promptsList, diags := types.ListValueFrom(ctx, types.StringType, createdServer.AssociatedPrompts)
 		resp.Diagnostics.Append(diags...)
 		data.AssociatedPrompts = promptsList
 	} else {
-		data.AssociatedPrompts = types.ListNull(types.Int64Type)
+		data.AssociatedPrompts = types.ListNull(types.StringType)
 	}
 
 	if createdServer.AssociatedA2aAgents != nil {
@@ -484,7 +481,7 @@ func (r *serverResource) Create(ctx context.Context, req resource.CreateRequest,
 
 	// Map organizational fields
 	if createdServer.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, createdServer.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(createdServer.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {
@@ -568,21 +565,19 @@ func (r *serverResource) Read(ctx context.Context, req resource.ReadRequest, res
 	}
 
 	if server.AssociatedResources != nil {
-		resourcesInt64 := convertIntSliceToInt64(server.AssociatedResources)
-		resourcesList, diags := types.ListValueFrom(ctx, types.Int64Type, resourcesInt64)
+		resourcesList, diags := types.ListValueFrom(ctx, types.StringType, server.AssociatedResources)
 		resp.Diagnostics.Append(diags...)
 		data.AssociatedResources = resourcesList
 	} else {
-		data.AssociatedResources = types.ListNull(types.Int64Type)
+		data.AssociatedResources = types.ListNull(types.StringType)
 	}
 
 	if server.AssociatedPrompts != nil {
-		promptsInt64 := convertIntSliceToInt64(server.AssociatedPrompts)
-		promptsList, diags := types.ListValueFrom(ctx, types.Int64Type, promptsInt64)
+		promptsList, diags := types.ListValueFrom(ctx, types.StringType, server.AssociatedPrompts)
 		resp.Diagnostics.Append(diags...)
 		data.AssociatedPrompts = promptsList
 	} else {
-		data.AssociatedPrompts = types.ListNull(types.Int64Type)
+		data.AssociatedPrompts = types.ListNull(types.StringType)
 	}
 
 	if server.AssociatedA2aAgents != nil {
@@ -614,7 +609,7 @@ func (r *serverResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 	// Map organizational fields
 	if server.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, server.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(server.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {
@@ -711,26 +706,26 @@ func (r *serverResource) Update(ctx context.Context, req resource.UpdateRequest,
 		server.AssociatedTools = tools
 	}
 
-	// Associated resources update (int64 → string)
+	// Associated resources update (string IDs)
 	if !data.AssociatedResources.IsNull() && !data.AssociatedResources.IsUnknown() {
-		var resources []int64
+		var resources []string
 		diags := data.AssociatedResources.ElementsAs(ctx, &resources, false)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		server.AssociatedResources = convertInt64SliceToString(resources)
+		server.AssociatedResources = resources
 	}
 
-	// Associated prompts update (int64 → string)
+	// Associated prompts update (string IDs)
 	if !data.AssociatedPrompts.IsNull() && !data.AssociatedPrompts.IsUnknown() {
-		var prompts []int64
+		var prompts []string
 		diags := data.AssociatedPrompts.ElementsAs(ctx, &prompts, false)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		server.AssociatedPrompts = convertInt64SliceToString(prompts)
+		server.AssociatedPrompts = prompts
 	}
 
 	// Associated A2A agents update (string IDs)
@@ -785,21 +780,19 @@ func (r *serverResource) Update(ctx context.Context, req resource.UpdateRequest,
 	}
 
 	if updatedServer.AssociatedResources != nil {
-		resourcesInt64 := convertIntSliceToInt64(updatedServer.AssociatedResources)
-		resourcesList, diags := types.ListValueFrom(ctx, types.Int64Type, resourcesInt64)
+		resourcesList, diags := types.ListValueFrom(ctx, types.StringType, updatedServer.AssociatedResources)
 		resp.Diagnostics.Append(diags...)
 		data.AssociatedResources = resourcesList
 	} else {
-		data.AssociatedResources = types.ListNull(types.Int64Type)
+		data.AssociatedResources = types.ListNull(types.StringType)
 	}
 
 	if updatedServer.AssociatedPrompts != nil {
-		promptsInt64 := convertIntSliceToInt64(updatedServer.AssociatedPrompts)
-		promptsList, diags := types.ListValueFrom(ctx, types.Int64Type, promptsInt64)
+		promptsList, diags := types.ListValueFrom(ctx, types.StringType, updatedServer.AssociatedPrompts)
 		resp.Diagnostics.Append(diags...)
 		data.AssociatedPrompts = promptsList
 	} else {
-		data.AssociatedPrompts = types.ListNull(types.Int64Type)
+		data.AssociatedPrompts = types.ListNull(types.StringType)
 	}
 
 	if updatedServer.AssociatedA2aAgents != nil {
@@ -831,7 +824,7 @@ func (r *serverResource) Update(ctx context.Context, req resource.UpdateRequest,
 
 	// Map organizational fields
 	if updatedServer.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, updatedServer.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(updatedServer.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {
@@ -907,15 +900,6 @@ func (r *serverResource) ImportState(ctx context.Context, req resource.ImportSta
 }
 
 // Helper functions
-
-// convertInt64SliceToString converts a slice of int64 to a slice of strings.
-func convertInt64SliceToString(input []int64) []string {
-	result := make([]string, len(input))
-	for i, v := range input {
-		result[i] = strconv.FormatInt(v, 10)
-	}
-	return result
-}
 
 // mapMetricsToObject converts ServerMetrics to types.Object.
 func mapMetricsToObject(ctx context.Context, metrics *contextforge.ServerMetrics) (types.Object, diag.Diagnostics) {

@@ -431,7 +431,7 @@ func (d *agentDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 
 	// Map organizational fields
 	if agent.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, agent.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(agent.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {

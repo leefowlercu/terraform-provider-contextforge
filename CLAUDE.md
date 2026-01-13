@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Terraform provider for IBM ContextForge MCP Gateway built using the Terraform Plugin Framework v1.16.1. The provider communicates with the ContextForge MCP Gateway API via the `go-contextforge` v0.7.0 client library.
+This is a Terraform provider for IBM ContextForge MCP Gateway built using the Terraform Plugin Framework v1.16.1. The provider communicates with the ContextForge MCP Gateway API via the `go-contextforge` v0.8.1 client library.
 
 **Provider Address**: `registry.terraform.io/hashicorp/contextforge`
 
@@ -73,7 +73,7 @@ The gateway data source provides read-only access to ContextForge MCP Gateway re
 The server data source provides read-only access to ContextForge virtual server resources:
 
 - **Type conversions** handled for complex types:
-  - `[]int` → `[]int64` for associated_resources and associated_prompts lists
+  - `[]string` → `types.List` (with `types.StringType`) for associated_resources and associated_prompts lists
   - Nested metrics object with performance statistics
   - Timestamps → `types.String` in RFC3339 format
 - **Key attributes**: id, name, description, icon, is_active, associated_tools, associated_resources, associated_prompts, associated_a2a_agents, metrics
@@ -144,16 +144,16 @@ The agent data source provides read-only access to ContextForge A2A agent resour
 The prompt data source provides read-only access to ContextForge prompt resources:
 
 - **Type conversions** handled for complex types:
-  - Integer ID (types.Int64) - only data source using integer ID instead of string
+  - String ID (types.String) - changed from int to string in go-contextforge v0.8.1
   - Nested arguments list with promptArgumentModel objects (name, description, required)
   - Nested metrics object with performance statistics
   - Timestamps → `types.String` in RFC3339 format
+  - Tags use `contextforge.TagNames()` to convert `[]Tag` to `[]string`
 - **Key attributes**: id, name, description, template, arguments, is_active, tags, metrics
 - **Arguments structure**: List of objects with name, description, required fields
 - **Metrics fields**: total_executions, successful_executions, failed_executions, failure_rate, min_response_time, max_response_time, avg_response_time, last_execution_time
 - **Organizational fields**: team_id, team, owner_email, visibility
 - **Unique characteristics**:
-  - Only data source with integer ID (types.Int64)
   - Uses List() API endpoint and filters by ID (no dedicated Get metadata endpoint available)
   - Has nested arguments list for prompt parameters
 
@@ -186,24 +186,22 @@ The tool resource provides full CRUD operations for ContextForge tool resources:
 - **Read-only fields**: id, timestamps (2)
 - **Special considerations**: Update followed by GET workaround for API bug
 
-**Acceptance tests** verify resource functionality (see `internal/provider/resource_tool_test.go`). Note: 4 tests skipped due to upstream bugs in tool update API (see `docs/upstream-bugs/contextforge-tool-update-bug.md`).
+**Acceptance tests** verify resource functionality (see `internal/provider/resource_tool_test.go`). Note: 4 tests skipped due to upstream bugs in tool update API.
 
 **contextforge_server** - Manages virtual server resources (`internal/provider/resource_server.go`)
 
 The server resource provides full CRUD operations for ContextForge virtual server resources:
 
 - **Type conversions** handled for association fields:
-  - associated_tools: `[]string` (no conversion)
-  - associated_resources: `[]int64` (TF) → `[]string` (API) → `[]int` (response) → `[]int64` (state)
-  - associated_prompts: `[]int64` (TF) → `[]string` (API) → `[]int` (response) → `[]int64` (state)
-  - associated_a2a_agents: `[]string` (no conversion)
-  - Helper functions: `convertInt64SliceToString()`, `convertIntSliceToInt64()`
+  - associated_tools: `[]string` → `types.List` (with `types.StringType`)
+  - associated_resources: `[]string` → `types.List` (with `types.StringType`)
+  - associated_prompts: `[]string` → `types.List` (with `types.StringType`)
+  - associated_a2a_agents: `[]string` → `types.List` (with `types.StringType`)
 - **Key attributes**: name (required), description, icon, tags, associations (4 types), team_id, visibility
 - **Read-only fields**: id, is_active, metrics (nested object with 8 fields), team, owner_email, timestamps (2), metadata (10 fields), version
 - **Metrics nested object**: total_executions, successful_executions, failed_executions, failure_rate, response times (min/max/avg), last_execution_time
-- **Special considerations**: Update followed by GET workaround for API bug
 
-**Acceptance tests** verify resource functionality with 5 passing tests (see `internal/provider/resource_server_test.go`). Tests cover basic CRUD, complete configuration, updates, import, and validation.
+**Acceptance tests** verify resource functionality with 6 tests (see `internal/provider/resource_server_test.go`). Tests cover basic CRUD, complete configuration, updates, associations, import, and validation.
 
 **contextforge_agent** - Manages A2A (Agent-to-Agent) agent resources (`internal/provider/resource_agent.go`)
 
@@ -294,6 +292,7 @@ make integration-test-teardown  # Stops gateway and cleans tmp/
 The setup script creates a complete test environment:
 
 1. **ContextForge Gateway** (port 8000)
+   - Version: `mcp-contextforge-gateway==1.0.0b1` (pinned in setup script)
    - SQLite database: `tmp/contextforge-test.db`
    - Process ID: `tmp/contextforge-test.pid`
    - Logs: `tmp/contextforge-test.log`
@@ -446,7 +445,7 @@ scripts/integration-test-setup.sh            - Gateway startup automation, MCP s
 scripts/integration-test-teardown.sh         - Gateway cleanup
 scripts/bump-version.sh                      - Version bumping utility (used by release targets)
 test/terraform/                              - Manual testing Terraform configurations
-go.mod                                       - Dependencies (Plugin Framework 1.16.1, go-contextforge 0.7.0)
+go.mod                                       - Dependencies (Plugin Framework 1.16.1, go-contextforge 0.8.1)
 ```
 
 ## Important Implementation Details

@@ -369,12 +369,12 @@ func (r *resourceResource) Create(ctx context.Context, req resource.CreateReques
 
 	// CreateOptions for team_id and visibility
 	opts := &contextforge.ResourceCreateOptions{}
-	if !data.TeamID.IsNull() {
+	if !data.TeamID.IsNull() && !data.TeamID.IsUnknown() {
 		teamID := data.TeamID.ValueString()
 		opts.TeamID = &teamID
 	}
 
-	if !data.Visibility.IsNull() {
+	if !data.Visibility.IsNull() && !data.Visibility.IsUnknown() {
 		visibility := data.Visibility.ValueString()
 		opts.Visibility = &visibility
 	}
@@ -518,11 +518,39 @@ func (r *resourceResource) Update(ctx context.Context, req resource.UpdateReques
 	resourceID := data.ID.ValueString()
 
 	// Update the resource
-	updatedResource, _, err := r.client.Resources.Update(ctx, resourceID, resourceUpdate)
+	_, _, err := r.client.Resources.Update(ctx, resourceID, resourceUpdate)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Failed to Update Resource",
 			fmt.Sprintf("Unable to update resource; %v", err),
+		)
+		return
+	}
+
+	// The Update API response doesn't include all fields (e.g., team_id is null).
+	// Workaround: Do a fresh GET via List and filter to get complete state.
+	resources, _, err := r.client.Resources.List(ctx, nil)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to Read Resource After Update",
+			fmt.Sprintf("Unable to read resource after update; %v", err),
+		)
+		return
+	}
+
+	// Find the updated resource by ID
+	var updatedResource *contextforge.Resource
+	for _, res := range resources {
+		if res.ID != nil && res.ID.String() == resourceID {
+			updatedResource = res
+			break
+		}
+	}
+
+	if updatedResource == nil {
+		resp.Diagnostics.AddError(
+			"Resource Not Found After Update",
+			fmt.Sprintf("Unable to find resource with ID %s after update", resourceID),
 		)
 		return
 	}
@@ -635,7 +663,7 @@ func (r *resourceResource) mapResourceToState(ctx context.Context, resource *con
 
 	// Map organizational fields
 	if resource.Tags != nil {
-		tagsList, tagsDiags := types.ListValueFrom(ctx, types.StringType, resource.Tags)
+		tagsList, tagsDiags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(resource.Tags))
 		diags.Append(tagsDiags...)
 		data.Tags = tagsList
 	} else {

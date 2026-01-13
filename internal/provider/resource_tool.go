@@ -199,7 +199,7 @@ func (r *toolResource) Create(ctx context.Context, req resource.CreateRequest, r
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		tool.Tags = tags
+		tool.Tags = contextforge.NewTags(tags)
 	}
 
 	// Prepare create options for team_id and visibility
@@ -254,7 +254,7 @@ func (r *toolResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	// Map tags from response
 	if createdTool.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, createdTool.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(createdTool.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {
@@ -330,7 +330,7 @@ func (r *toolResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	// Map tags
 	if tool.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, tool.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(tool.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {
@@ -404,7 +404,7 @@ func (r *toolResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		tool.Tags = tags
+		tool.Tags = contextforge.NewTags(tags)
 	}
 
 	// Map optional team_id (Update uses tool struct directly)
@@ -462,7 +462,7 @@ func (r *toolResource) Update(ctx context.Context, req resource.UpdateRequest, r
 
 	// Map tags from response
 	if updatedTool.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, updatedTool.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(updatedTool.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {

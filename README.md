@@ -1,12 +1,19 @@
-# terraform-provider-contextforge
+# Terraform Provider ContextForge
 
-Terraform provider for IBM ContextForge MCP Gateway management. Manages virtual servers, gateways, tools, resources, and prompts for the ContextForge MCP Gateway service.
+[![Build Status](https://github.com/leefowlercu/terraform-provider-contextforge/actions/workflows/test.yml/badge.svg)](https://github.com/leefowlercu/terraform-provider-contextforge/actions/workflows/test.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/leefowlercu/terraform-provider-contextforge)](https://goreportcard.com/report/github.com/leefowlercu/terraform-provider-contextforge)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
+Terraform provider for IBM ContextForge MCP Gateway management. Manages virtual servers, gateways, tools, resources, agents, and prompts for the ContextForge MCP Gateway service.
+
+**Current Version**: v0.2.0 ([CHANGELOG.md](CHANGELOG.md))
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Architecture](#architecture)
 - [Requirements](#requirements)
+- [Quick Start](#quick-start)
 - [Provider Configuration](#provider-configuration)
   - [Authentication](#authentication)
   - [Configuration Example](#configuration-example)
@@ -19,6 +26,11 @@ Terraform provider for IBM ContextForge MCP Gateway management. Manages virtual 
   - [contextforge_team](#contextforge_team)
   - [contextforge_tool](#contextforge_tool)
 - [Resources](#resources)
+  - [contextforge_agent](#contextforge_agent-resource)
+  - [contextforge_gateway](#contextforge_gateway-resource)
+  - [contextforge_resource](#contextforge_resource-resource)
+  - [contextforge_server](#contextforge_server-resource)
+  - [contextforge_tool](#contextforge_tool-resource)
 - [Development](#development)
   - [Prerequisites](#prerequisites)
   - [Building the Provider](#building-the-provider)
@@ -37,13 +49,57 @@ For more information about ContextForge MCP Gateway, see the [official documenta
 
 ## Architecture
 
-The provider is built using the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1 and communicates with the ContextForge MCP Gateway API via the [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.6.0 client library. The `internal/tfconv` package handles type conversions between the client library's Go types and Terraform Plugin Framework types, including conversions for heterogeneous maps, authentication headers, and RFC3339 timestamps.
+The provider is built using the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1 and communicates with the ContextForge MCP Gateway API via the [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.8.1 client library. The `internal/tfconv` package handles type conversions between the client library's Go types and Terraform Plugin Framework types, including conversions for heterogeneous maps, authentication headers, and RFC3339 timestamps.
 
 ## Requirements
 
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.0
 - [Go](https://golang.org/doc/install) >= 1.25 (for development)
 - Access to a ContextForge MCP Gateway instance
+
+## Quick Start
+
+1. Configure the provider in your Terraform configuration:
+
+```hcl
+terraform {
+  required_providers {
+    contextforge = {
+      source  = "registry.terraform.io/hashicorp/contextforge"
+      version = "~> 0.2"
+    }
+  }
+}
+
+provider "contextforge" {
+  address = "https://contextforge.example.com"
+  token   = var.contextforge_token
+}
+```
+
+2. Set your environment variables:
+
+```bash
+export CONTEXTFORGE_ADDR="https://contextforge.example.com"
+export CONTEXTFORGE_TOKEN="your-jwt-token"
+```
+
+3. Create a resource:
+
+```hcl
+resource "contextforge_server" "example" {
+  name        = "my-mcp-server"
+  description = "My MCP virtual server"
+}
+```
+
+4. Apply the configuration:
+
+```bash
+terraform init
+terraform plan
+terraform apply
+```
 
 ## Provider Configuration
 
@@ -63,7 +119,7 @@ terraform {
   required_providers {
     contextforge = {
       source  = "registry.terraform.io/hashicorp/contextforge"
-      version = "~> 0.1"
+      version = "~> 0.2"
     }
   }
 }
@@ -218,46 +274,6 @@ Retrieves information about an existing ContextForge resource by ID.
 **Example Usage:**
 
 ```hcl
-data "contextforge_server" "example" {
-  id = "server-id-12345"
-}
-
-output "server_status" {
-  value = {
-    name      = data.contextforge_server.example.name
-    is_active = data.contextforge_server.example.is_active
-  }
-}
-
-output "server_metrics" {
-  value = data.contextforge_server.example.metrics
-}
-```
-
-**Key Attributes:**
-
-- `id` - (Required) The unique identifier of the server to retrieve
-- `name` - Server name
-- `description` - Server description
-- `icon` - Server icon (URL or data URI)
-- `is_active` - Whether the server is active
-- `associated_tools` - Associated tool IDs
-- `associated_resources` - Associated resource IDs
-- `associated_prompts` - Associated prompt IDs
-- `associated_a2a_agents` - Associated A2A agent IDs
-- `metrics` - Nested object with performance metrics (total_executions, successful_executions, failed_executions, failure_rate, response times)
-- `created_at` - Server creation timestamp
-- `updated_at` - Server last update timestamp
-
-See the Terraform Registry documentation for the complete attribute reference.
-
-### contextforge_resource
-
-Retrieves information about an existing ContextForge resource by ID.
-
-**Example Usage:**
-
-```hcl
 data "contextforge_resource" "example" {
   id = "1"
 }
@@ -290,6 +306,46 @@ output "resource_metrics" {
 - `visibility` - Visibility setting (public, private, etc.)
 - `created_at` - Resource creation timestamp
 - `updated_at` - Resource last update timestamp
+
+See the Terraform Registry documentation for the complete attribute reference.
+
+### contextforge_server
+
+Retrieves information about an existing ContextForge server by ID.
+
+**Example Usage:**
+
+```hcl
+data "contextforge_server" "example" {
+  id = "server-id-12345"
+}
+
+output "server_status" {
+  value = {
+    name      = data.contextforge_server.example.name
+    is_active = data.contextforge_server.example.is_active
+  }
+}
+
+output "server_metrics" {
+  value = data.contextforge_server.example.metrics
+}
+```
+
+**Key Attributes:**
+
+- `id` - (Required) The unique identifier of the server to retrieve
+- `name` - Server name
+- `description` - Server description
+- `icon` - Server icon (URL or data URI)
+- `is_active` - Whether the server is active
+- `associated_tools` - Associated tool IDs
+- `associated_resources` - Associated resource IDs
+- `associated_prompts` - Associated prompt IDs
+- `associated_a2a_agents` - Associated A2A agent IDs
+- `metrics` - Nested object with performance metrics (total_executions, successful_executions, failed_executions, failure_rate, response times)
+- `created_at` - Server creation timestamp
+- `updated_at` - Server last update timestamp
 
 See the Terraform Registry documentation for the complete attribute reference.
 
@@ -372,7 +428,218 @@ See the Terraform Registry documentation for the complete attribute reference.
 
 ## Resources
 
-No managed resources are currently implemented. Resources for managing gateways, servers, tools, resources, and prompts will be added in future releases.
+The provider supports full CRUD operations for the following managed resources.
+
+### contextforge_agent (Resource)
+
+Manages a ContextForge A2A (Agent-to-Agent) agent resource.
+
+**Example Usage:**
+
+```hcl
+resource "contextforge_agent" "example" {
+  name         = "my-agent"
+  endpoint_url = "https://agent.example.com/api"
+  description  = "My A2A agent"
+  enabled      = true
+  tags         = ["production", "a2a"]
+}
+```
+
+**Required Attributes:**
+
+- `name` - Agent name
+- `endpoint_url` - Agent endpoint URL
+
+**Optional Attributes:**
+
+- `description` - Agent description
+- `agent_type` - Agent type
+- `protocol_version` - Protocol version
+- `config` - Agent configuration (dynamic object)
+- `auth_type` - Authentication type
+- `enabled` - Whether the agent is enabled
+- `tags` - List of tags
+- `team_id` - Team ID
+- `visibility` - Visibility setting
+
+**Read-Only Attributes:**
+
+- `id` - Agent unique identifier
+- `slug` - URL-friendly identifier
+- `capabilities` - Agent capabilities (dynamic object)
+- `reachable` - Whether the agent is reachable
+- `metrics` - Performance metrics object
+- `created_at`, `updated_at` - Timestamps
+
+### contextforge_gateway (Resource)
+
+Manages a ContextForge MCP Gateway resource.
+
+**Example Usage:**
+
+```hcl
+resource "contextforge_gateway" "example" {
+  name        = "my-gateway"
+  url         = "http://localhost:8080/sse"
+  transport   = "SSE"
+  description = "My MCP gateway"
+  enabled     = true
+  tags        = ["production"]
+}
+```
+
+**Required Attributes:**
+
+- `name` - Gateway name
+- `url` - Gateway endpoint URL (must be reachable)
+- `transport` - Transport protocol (SSE, HTTP, STDIO, STREAMABLEHTTP)
+
+**Optional Attributes:**
+
+- `description` - Gateway description
+- `enabled` - Whether the gateway is enabled
+- `auth_type` - Authentication type
+- `auth_username`, `auth_password` - Basic authentication credentials
+- `auth_token` - Bearer token authentication
+- `auth_header_key`, `auth_header_value` - Custom header authentication
+- `oauth_config` - OAuth configuration (dynamic object)
+- `tags` - List of tags
+- `team_id` - Team ID
+- `visibility` - Visibility setting
+
+**Read-Only Attributes:**
+
+- `id` - Gateway unique identifier
+- `slug` - URL-friendly identifier
+- `reachable` - Whether the gateway is reachable
+- `capabilities` - Gateway capabilities (dynamic object)
+- `created_at`, `updated_at`, `last_seen` - Timestamps
+
+### contextforge_resource (Resource)
+
+Manages a ContextForge resource entity.
+
+**Example Usage:**
+
+```hcl
+resource "contextforge_resource" "example" {
+  uri         = "config://app/settings"
+  name        = "app-settings"
+  content     = jsonencode({ theme = "dark", language = "en" })
+  description = "Application settings"
+  mime_type   = "application/json"
+  tags        = ["config"]
+}
+```
+
+**Required Attributes:**
+
+- `uri` - Resource URI
+- `name` - Resource name
+- `content` - Resource content (write-only, not returned by API)
+
+**Optional Attributes:**
+
+- `description` - Resource description
+- `mime_type` - MIME type of the resource
+- `tags` - List of tags
+- `team_id` - Team ID (can only be set at creation)
+- `visibility` - Visibility setting (can only be set at creation)
+
+**Read-Only Attributes:**
+
+- `id` - Resource unique identifier
+- `size` - Resource size in bytes
+- `is_active` - Whether the resource is active
+- `metrics` - Performance metrics object
+- `created_at`, `updated_at` - Timestamps
+
+### contextforge_server (Resource)
+
+Manages a ContextForge virtual server resource.
+
+**Example Usage:**
+
+```hcl
+resource "contextforge_server" "example" {
+  name        = "my-server"
+  description = "My MCP virtual server"
+  icon        = "https://example.com/icon.png"
+  tags        = ["production"]
+
+  associated_tools     = ["tool-id-1", "tool-id-2"]
+  associated_resources = ["resource-id-1"]
+  associated_prompts   = ["prompt-id-1"]
+}
+```
+
+**Required Attributes:**
+
+- `name` - Server name
+
+**Optional Attributes:**
+
+- `description` - Server description
+- `icon` - Server icon URL
+- `associated_tools` - List of associated tool IDs
+- `associated_resources` - List of associated resource IDs
+- `associated_prompts` - List of associated prompt IDs
+- `associated_a2a_agents` - List of associated A2A agent IDs
+- `tags` - List of tags
+- `team_id` - Team ID
+- `visibility` - Visibility setting
+
+**Read-Only Attributes:**
+
+- `id` - Server unique identifier
+- `is_active` - Whether the server is active
+- `metrics` - Performance metrics object (total_executions, successful_executions, failed_executions, failure_rate, response times)
+- `created_at`, `updated_at` - Timestamps
+
+### contextforge_tool (Resource)
+
+Manages a ContextForge tool resource.
+
+**Example Usage:**
+
+```hcl
+resource "contextforge_tool" "example" {
+  name        = "my-tool"
+  description = "My MCP tool"
+  enabled     = true
+  tags        = ["utility"]
+
+  input_schema = jsonencode({
+    type = "object"
+    properties = {
+      message = {
+        type        = "string"
+        description = "The message to process"
+      }
+    }
+    required = ["message"]
+  })
+}
+```
+
+**Required Attributes:**
+
+- `name` - Tool name
+
+**Optional Attributes:**
+
+- `description` - Tool description
+- `input_schema` - JSON Schema defining tool input parameters (dynamic)
+- `enabled` - Whether the tool is enabled
+- `tags` - List of tags
+- `team_id` - Team ID
+- `visibility` - Visibility setting
+
+**Read-Only Attributes:**
+
+- `id` - Tool unique identifier
+- `created_at`, `updated_at` - Timestamps
 
 ## Development
 
@@ -442,8 +709,9 @@ make integration-test-all
 This target:
 1. Starts a local ContextForge gateway on `http://localhost:8000`
 2. Generates a JWT token for authentication
-3. Runs integration tests with `TF_ACC=1`
-4. Tears down the gateway after tests complete
+3. Creates test resources (gateway, server, tool, resource, team, agent, prompt)
+4. Runs integration tests with `TF_ACC=1`
+5. Tears down the gateway after tests complete
 
 **Manual integration test workflow:**
 
@@ -475,41 +743,8 @@ The integration test setup script creates a complete test environment:
    - PID stored in `tmp/time-server.pid`
 
 3. **Test Resources** - Creates test entities for acceptance tests
-   - **Test Gateway**: Created via ContextForge API pointing to time server
-     - URL: `http://localhost:8002/sse`
-     - Transport: SSE (Server-Sent Events)
-     - Name: "test-time-server"
-     - Description: "Test gateway for integration tests"
-     - Gateway ID saved: `tmp/contextforge-test-gateway-id.txt`
-   - **Test Server**: Virtual MCP server for testing
-     - Name: "test-server"
-     - Description: "Test server for integration tests"
-     - Server ID saved: `tmp/contextforge-test-server-id.txt`
-   - **Test Tool**: MCP tool for testing
-     - Name: "test-tool"
-     - Description: "Test tool for integration tests"
-     - Tool ID saved: `tmp/contextforge-test-tool-id.txt`
-   - **Test Resource**: MCP resource for testing
-     - URI: "test://integration/resource"
-     - Name: "test-resource"
-     - Description: "Test resource for integration tests"
-     - Resource ID saved: `tmp/contextforge-test-resource-id.txt`
-   - **Test Team**: Team for testing
-     - Name: "test-team"
-     - Slug: "test-team"
-     - Description: "Test team for integration tests"
-     - Team ID saved: `tmp/contextforge-test-team-id.txt`
-   - **Test Agent**: A2A agent for testing
-     - Name: "test-agent"
-     - Endpoint URL: "http://localhost:9000/agent"
-     - Description: "Test agent for integration tests"
-     - Agent ID saved: `tmp/contextforge-test-agent-id.txt`
-   - **Test Prompt**: Prompt for testing
-     - Name: "test-prompt"
-     - Template: "Hello {{name}}, this is a test prompt."
-     - Description: "Test prompt for integration tests"
-     - Prompt ID saved: `tmp/contextforge-test-prompt-id.txt`
-   - Used by acceptance tests to verify data source functionality
+   - Test Gateway, Server, Tool, Resource, Team, Agent, and Prompt
+   - IDs saved to `tmp/contextforge-test-*-id.txt` files
 
 ## Makefile Targets
 
@@ -522,7 +757,7 @@ The integration test setup script creates a complete test environment:
 | `integration-test-setup` | Start local ContextForge gateway for integration testing |
 | `integration-test-teardown` | Stop local ContextForge gateway and clean up |
 | `integration-test` | Run integration tests (requires running gateway) |
-| `integration-test-all` | Run full integration test lifecycle (setup → test → teardown) |
+| `integration-test-all` | Run full integration test lifecycle (setup -> test -> teardown) |
 | `help` | Display help information |
 
 ## Contributing
@@ -541,4 +776,4 @@ Contributions are welcome. When contributing:
 
 **Dependencies:**
 - [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1
-- [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.7.0 - Go client library for ContextForge MCP Gateway
+- [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.8.1 - Go client library for ContextForge MCP Gateway

@@ -397,7 +397,7 @@ func (d *resourceDataSource) Read(ctx context.Context, req datasource.ReadReques
 
 	// Map organizational fields
 	if resource.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, resource.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(resource.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {

@@ -59,6 +59,9 @@ integration-test:
 	@export TF_ACC=1 && \
 	export CONTEXTFORGE_ADDR=$(CONTEXTFORGE_ADDR) && \
 	export CONTEXTFORGE_TOKEN=$$(cat $(CONTEXTFORGE_TOKEN_FILE)) && \
+	export CONTEXTFORGE_TEST_RESOURCE_ID=$$(cat ./tmp/contextforge-test-resource-id.txt 2>/dev/null || echo "") && \
+	export CONTEXTFORGE_TEST_PROMPT_ID=$$(cat ./tmp/contextforge-test-prompt-id.txt 2>/dev/null || echo "") && \
+	export CONTEXTFORGE_TEST_TOOL_ID=$$(cat ./tmp/contextforge-test-tool-id.txt 2>/dev/null || echo "") && \
 	go test -v -timeout 30m ./...
 
 # Run full integration test lifecycle (setup -> test -> teardown)

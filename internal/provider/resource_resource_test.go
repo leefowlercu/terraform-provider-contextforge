@@ -46,9 +46,10 @@ func TestAccResourceResource_basic(t *testing.T) {
 			},
 			// Import testing
 			{
-				ResourceName:      "contextforge_resource.test",
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            "contextforge_resource.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"content"}, // content is write-only (not returned by API)
 			},
 		},
 	})
@@ -90,9 +91,10 @@ func TestAccResourceResource_complete(t *testing.T) {
 			},
 			// Import testing
 			{
-				ResourceName:      "contextforge_resource.test",
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            "contextforge_resource.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"content"}, // content is write-only (not returned by API)
 			},
 		},
 	})
@@ -156,9 +158,10 @@ func TestAccResourceResource_import(t *testing.T) {
 			},
 			// Import by ID
 			{
-				ResourceName:      "contextforge_resource.test",
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            "contextforge_resource.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"content"}, // content is write-only (not returned by API)
 			},
 		},
 	})

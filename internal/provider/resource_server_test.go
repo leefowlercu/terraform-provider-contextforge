@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"testing"
 
@@ -132,17 +133,53 @@ func TestAccServerResource_update(t *testing.T) {
 }
 
 // TestAccServerResource_associations tests association field type conversions.
-// This verifies that int64 → string → int conversions work correctly for
-// associated_resources and associated_prompts fields.
+// This verifies that associated_resources and associated_prompts work correctly
+// with string UUIDs (as fixed in go-contextforge SDK v0.8.1).
+//
+// Note: associated_tools has an API quirk where it accepts UUIDs but returns tool names,
+// causing inconsistent results. This test focuses on resources and prompts only.
+//
+// Prerequisites:
+//   - CONTEXTFORGE_TEST_RESOURCE_ID environment variable set (from integration test setup)
+//   - CONTEXTFORGE_TEST_PROMPT_ID environment variable set (from integration test setup)
 //
 // To run:
 //   make integration-test-all
 //   TF_ACC=1 go test -v ./internal/provider/ -run TestAccServerResource_associations
 func TestAccServerResource_associations(t *testing.T) {
-	t.Skip("Skipping associations test - requires pre-existing resource and prompt IDs in test environment")
-	// This test would require creating actual resources and prompts first,
-	// which is complex for the test infrastructure. The type conversion
-	// is tested implicitly in the complete test.
+	resourceID := os.Getenv("CONTEXTFORGE_TEST_RESOURCE_ID")
+	promptID := os.Getenv("CONTEXTFORGE_TEST_PROMPT_ID")
+
+	if resourceID == "" || promptID == "" {
+		t.Skip("Skipping associations test - requires CONTEXTFORGE_TEST_RESOURCE_ID and CONTEXTFORGE_TEST_PROMPT_ID environment variables")
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			// Create server with resource and prompt associations
+			{
+				Config: testAccServerResourceConfigWithResourcePromptAssociations("tf-associations-server", resourceID, promptID),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					// Verify computed attributes
+					resource.TestCheckResourceAttrSet("contextforge_server.test", "id"),
+
+					// Verify associations
+					resource.TestCheckResourceAttr("contextforge_server.test", "associated_resources.#", "1"),
+					resource.TestCheckResourceAttr("contextforge_server.test", "associated_resources.0", resourceID),
+					resource.TestCheckResourceAttr("contextforge_server.test", "associated_prompts.#", "1"),
+					resource.TestCheckResourceAttr("contextforge_server.test", "associated_prompts.0", promptID),
+				),
+			},
+			// Import testing
+			{
+				ResourceName:      "contextforge_server.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
 }
 
 // TestAccServerResource_import tests importing an existing server.
@@ -265,4 +302,25 @@ resource "contextforge_server" "test" {
   description = "Server missing required name"
 }
 `
+}
+
+// testAccServerResourceConfigWithResourcePromptAssociations generates Terraform configuration
+// with resource and prompt associations only.
+//
+// Parameters:
+//   - name: Server name
+//   - resourceID: ID of an existing resource to associate (string UUID)
+//   - promptID: ID of an existing prompt to associate (string UUID)
+//
+// Returns:
+//   - HCL configuration string with associations
+func testAccServerResourceConfigWithResourcePromptAssociations(name, resourceID, promptID string) string {
+	return fmt.Sprintf(`
+resource "contextforge_server" "test" {
+  name                 = %[1]q
+  description          = "Server with associations"
+  associated_resources = [%[2]q]
+  associated_prompts   = [%[3]q]
+}
+`, name, resourceID, promptID)
 }

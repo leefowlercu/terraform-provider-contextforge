@@ -174,7 +174,7 @@ func (d *toolDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	// Map organizational fields
 	if tool.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, tool.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(tool.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {

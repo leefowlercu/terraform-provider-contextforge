@@ -714,7 +714,7 @@ func (r *agentResource) mapAgentToState(ctx context.Context, agent *contextforge
 
 	// Map organizational fields
 	if agent.Tags != nil {
-		tagsList, tagsDiags := types.ListValueFrom(ctx, types.StringType, agent.Tags)
+		tagsList, tagsDiags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(agent.Tags))
 		diags.Append(tagsDiags...)
 		data.Tags = tagsList
 	} else {

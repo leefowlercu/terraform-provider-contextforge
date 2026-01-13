@@ -134,13 +134,13 @@ func (d *serverDataSource) Schema(ctx context.Context, req datasource.SchemaRequ
 				Computed:            true,
 			},
 			"associated_resources": schema.ListAttribute{
-				ElementType:         types.Int64Type,
+				ElementType:         types.StringType,
 				MarkdownDescription: "Associated resource IDs",
 				Description:         "Associated resource IDs",
 				Computed:            true,
 			},
 			"associated_prompts": schema.ListAttribute{
-				ElementType:         types.Int64Type,
+				ElementType:         types.StringType,
 				MarkdownDescription: "Associated prompt IDs",
 				Description:         "Associated prompt IDs",
 				Computed:            true,
@@ -354,21 +354,20 @@ func (d *serverDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		data.AssociatedA2aAgents = types.ListNull(types.StringType)
 	}
 
-	// Map association fields - int slices (need conversion to int64)
 	if server.AssociatedResources != nil {
-		resourcesList, diags := types.ListValueFrom(ctx, types.Int64Type, convertIntSliceToInt64(server.AssociatedResources))
+		resourcesList, diags := types.ListValueFrom(ctx, types.StringType, server.AssociatedResources)
 		resp.Diagnostics.Append(diags...)
 		data.AssociatedResources = resourcesList
 	} else {
-		data.AssociatedResources = types.ListNull(types.Int64Type)
+		data.AssociatedResources = types.ListNull(types.StringType)
 	}
 
 	if server.AssociatedPrompts != nil {
-		promptsList, diags := types.ListValueFrom(ctx, types.Int64Type, convertIntSliceToInt64(server.AssociatedPrompts))
+		promptsList, diags := types.ListValueFrom(ctx, types.StringType, server.AssociatedPrompts)
 		resp.Diagnostics.Append(diags...)
 		data.AssociatedPrompts = promptsList
 	} else {
-		data.AssociatedPrompts = types.ListNull(types.Int64Type)
+		data.AssociatedPrompts = types.ListNull(types.StringType)
 	}
 
 	// Map nested metrics
@@ -419,7 +418,7 @@ func (d *serverDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 
 	// Map organizational fields
 	if server.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, server.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(server.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {
@@ -484,15 +483,6 @@ func (d *serverDataSource) Configure(ctx context.Context, req datasource.Configu
 
 	// Assign the client to the data source
 	d.client = client
-}
-
-// convertIntSliceToInt64 converts []int to []int64 for Terraform compatibility.
-func convertIntSliceToInt64(ints []int) []int64 {
-	result := make([]int64, len(ints))
-	for i, v := range ints {
-		result[i] = int64(v)
-	}
-	return result
 }
 
 // attrTypes returns the attribute types map for serverMetricsModel.

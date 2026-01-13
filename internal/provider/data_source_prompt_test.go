@@ -99,7 +99,7 @@ func TestAccPromptDataSource_allAttributes(t *testing.T) {
 func testAccPromptDataSourceConfig(promptID string) string {
 	return fmt.Sprintf(`
 data "contextforge_prompt" "test" {
-  id = %[1]s
+  id = "%[1]s"
 }
 `, promptID)
 }

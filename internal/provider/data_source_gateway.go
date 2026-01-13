@@ -413,7 +413,7 @@ func (d *gatewayDataSource) Read(ctx context.Context, req datasource.ReadRequest
 
 	// Map organizational fields
 	if gateway.Tags != nil {
-		tagsList, diags := types.ListValueFrom(ctx, types.StringType, gateway.Tags)
+		tagsList, diags := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(gateway.Tags))
 		resp.Diagnostics.Append(diags...)
 		data.Tags = tagsList
 	} else {

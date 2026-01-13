@@ -432,7 +432,7 @@ func (r *gatewayResource) Create(ctx context.Context, req resource.CreateRequest
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		gateway.Tags = tags
+		gateway.Tags = contextforge.NewTags(tags)
 	}
 
 	// Prepare create options for team_id and visibility (like Tool resource)
@@ -612,7 +612,7 @@ func (r *gatewayResource) Update(ctx context.Context, req resource.UpdateRequest
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		gateway.Tags = tags
+		gateway.Tags = contextforge.NewTags(tags)
 	}
 
 	// Team/Visibility (Update uses gateway struct directly, not options)
@@ -776,7 +776,7 @@ func (r *gatewayResource) mapGatewayToState(ctx context.Context, gateway *contex
 
 	// Tags
 	if gateway.Tags != nil {
-		tagsList, diagsList := types.ListValueFrom(ctx, types.StringType, gateway.Tags)
+		tagsList, diagsList := types.ListValueFrom(ctx, types.StringType, contextforge.TagNames(gateway.Tags))
 		diags.Append(diagsList...)
 		data.Tags = tagsList
 	} else {
