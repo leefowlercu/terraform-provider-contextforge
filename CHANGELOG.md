@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.3.0] - 2026-01-13
+
+### Added
+
+- Feat: add gateway, tool, server, agent, and resource managed resources
+- Feat: update go-contextforge sdk to v0.8.1 and enable server associations
+
+### Fixed
+
+- Fix: remove gpg signing and fix version calculation from git tags
+
 ## [v0.2.0] - 2025-11-13
 
 ### Added
@@ -65,3 +76,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [v0.1.0]: https://github.com/leefowlercu/terraform-provider-contextforge/releases/tag/v0.1.0
 
 [v0.2.0]: https://github.com/leefowlercu/terraform-provider-contextforge/compare/v0.1.0...v0.2.0
+
+[v0.3.0]: https://github.com/leefowlercu/terraform-provider-contextforge/compare/v0.2.0...v0.3.0
