@@ -10,7 +10,6 @@ NC='\033[0m' # No Color
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-VERSION_FILE="${PROJECT_ROOT}/main.go"
 
 # Validate arguments
 if [ $# -ne 1 ]; then
@@ -27,19 +26,15 @@ if [[ ! "$BUMP_TYPE" =~ ^(major|minor|patch)$ ]]; then
     exit 1
 fi
 
-# Check if version file exists
-if [ ! -f "$VERSION_FILE" ]; then
-    echo -e "${RED}Error: Version file not found: ${VERSION_FILE}${NC}"
-    exit 1
-fi
+# Get current version from git tags (most recent semver tag)
+LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
 
-# Extract current version from main.go
-# Looking for: var ( version = "X.Y.Z" ) or var version = "X.Y.Z"
-CURRENT_VERSION=$(grep -E '^\s*version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"' "$VERSION_FILE" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+# Strip 'v' prefix if present
+CURRENT_VERSION="${LATEST_TAG#v}"
 
-if [ -z "$CURRENT_VERSION" ]; then
-    echo -e "${RED}Error: Could not extract version from ${VERSION_FILE}${NC}"
-    exit 1
+if [ -z "$CURRENT_VERSION" ] || [ "$CURRENT_VERSION" = "0.0.0" ]; then
+    echo -e "${YELLOW}Warning: No existing version tags found, starting from 0.0.0${NC}"
+    CURRENT_VERSION="0.0.0"
 fi
 
 echo -e "${GREEN}Current version: ${CURRENT_VERSION}${NC}"
