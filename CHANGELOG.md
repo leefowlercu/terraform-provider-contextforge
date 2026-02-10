@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.4.0] - 2026-02-10
+
+### Added
+
+- Feat: upgrade provider to go-contextforge v0.9.0
+
+### Documentation
+
+- Docs: add generated provider docs and pipeline checks
+- Docs: move agent rules to .agents and tighten policy
+- Docs: update readme version to v0.3.0
+- Docs: updates
+
+### Build
+
+- Build: add linux armv6 release artifacts
+- Build: fix goreleaser arm archive naming collision
+- Chore: harden release workflow and add dry-run target
+
+### Tests
+
+- Test: align harness and acceptance suite with beta-2
+
 ## [v0.3.0] - 2026-01-13
 
 ### Added
