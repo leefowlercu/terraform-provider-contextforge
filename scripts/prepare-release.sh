@@ -13,12 +13,54 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VERSION_FILE="${PROJECT_ROOT}/main.go"
 CHANGELOG="${PROJECT_ROOT}/CHANGELOG.md"
 DIST_CHANGELOG="${PROJECT_ROOT}/dist/CHANGELOG.md"
+REPO_COMPARE_BASE="https://github.com/leefowlercu/terraform-provider-contextforge/compare"
+REPO_RELEASE_BASE="https://github.com/leefowlercu/terraform-provider-contextforge/releases/tag"
 
 # Cleanup function to remove temp files on exit
 cleanup() {
     rm -f "${PROJECT_ROOT}/.next-version"
 }
 trap cleanup EXIT
+
+# Upsert a markdown reference link in a file.
+upsert_markdown_link() {
+    local KEY=$1
+    local VALUE=$2
+    local FILE=$3
+    local TMP_FILE
+
+    TMP_FILE=$(mktemp)
+    awk -v key="$KEY" -v value="$VALUE" '
+        BEGIN { replaced = 0 }
+        index($0, "[" key "]:") == 1 {
+            print value
+            replaced = 1
+            next
+        }
+        { print }
+        END {
+            if (replaced == 0) {
+                print value
+            }
+        }
+    ' "$FILE" > "$TMP_FILE"
+    mv "$TMP_FILE" "$FILE"
+}
+
+# Roll back local tag/commit changes created by this script before publish.
+rollback_pre_publish_changes() {
+    local VERSION=$1
+    local PREPARED_COMMIT=$2
+
+    echo ""
+    echo "Rolling back local release preparation changes..."
+    git tag -d "$VERSION" 2>/dev/null || true
+
+    if [ "$PREPARED_COMMIT" = true ]; then
+        # Keep local file safety checks; this script is expected to run from a clean tree.
+        git reset --keep HEAD~1 2>/dev/null || true
+    fi
+}
 
 # Function to merge goreleaser changelog into main CHANGELOG.md
 merge_changelog() {
@@ -160,21 +202,18 @@ merge_changelog() {
 
     mv "${CHANGELOG}.tmp" "$CHANGELOG"
 
-    # Update comparison links
-    local PREVIOUS_VERSION=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+    # Update version/unreleased reference links.
+    local VERSION_LINK=""
+    local UNRELEASED_LINK="[Unreleased]: ${REPO_COMPARE_BASE}/${VERSION}...HEAD"
 
-    # Check if links section exists
-    if ! grep -q "^\[${VERSION}\]:" "$CHANGELOG"; then
-        if [ -n "$PREVIOUS_VERSION" ]; then
-            # Add comparison link
-            echo "" >> "$CHANGELOG"
-            echo "[${VERSION}]: https://github.com/leefowlercu/terraform-provider-contextforge/compare/${PREVIOUS_VERSION}...${VERSION}" >> "$CHANGELOG"
-        else
-            # First release, link to tag
-            echo "" >> "$CHANGELOG"
-            echo "[${VERSION}]: https://github.com/leefowlercu/terraform-provider-contextforge/releases/tag/${VERSION}" >> "$CHANGELOG"
-        fi
+    if [ -n "$PREVIOUS_VERSION" ]; then
+        VERSION_LINK="[${VERSION}]: ${REPO_COMPARE_BASE}/${PREVIOUS_VERSION}...${VERSION}"
+    else
+        VERSION_LINK="[${VERSION}]: ${REPO_RELEASE_BASE}/${VERSION}"
     fi
+
+    upsert_markdown_link "$VERSION" "$VERSION_LINK" "$CHANGELOG"
+    upsert_markdown_link "Unreleased" "$UNRELEASED_LINK" "$CHANGELOG"
 
     rm -f "$TEMP_CHANGELOG"
     echo -e "${GREEN}Successfully merged changelog${NC}"
@@ -190,6 +229,9 @@ if [ $# -ne 1 ]; then
 fi
 
 VERSION=$1
+PREVIOUS_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+PREPARED_COMMIT=false
+DRY_RUN="${RELEASE_DRY_RUN:-0}"
 
 # Validate version format (vX.Y.Z)
 if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -202,6 +244,12 @@ fi
 VERSION_NO_V="${VERSION#v}"
 
 echo -e "${GREEN}Preparing release ${VERSION}...${NC}"
+
+# Safety check: release preparation assumes a clean worktree.
+if ! git diff-index --quiet HEAD -- || ! git diff-index --cached --quiet HEAD --; then
+    echo -e "${RED}Error: Working tree must be clean before running prepare-release.sh${NC}"
+    exit 1
+fi
 
 # Check if tag already exists
 if git rev-parse "$VERSION" >/dev/null 2>&1; then
@@ -231,6 +279,7 @@ if ! git diff --cached --quiet; then
     echo -e "${YELLOW}Creating release commit...${NC}"
     git commit -m "release: prepare ${VERSION}"
     CREATED_COMMIT=true
+    PREPARED_COMMIT=true
 else
     echo -e "${YELLOW}Version already correct in ${VERSION_FILE}, skipping commit...${NC}"
 fi
@@ -243,56 +292,22 @@ git tag -a "$VERSION" -m "Terraform ContextForge Provider ${VERSION}"
 if ! command -v goreleaser &> /dev/null; then
     echo -e "${RED}Error: goreleaser not found${NC}"
     echo "Install with: go install github.com/goreleaser/goreleaser/v2@latest"
-    echo ""
-    echo "Rolling back changes..."
-    git tag -d "$VERSION"
-    if [ "$CREATED_COMMIT" = true ]; then
-        git reset --hard HEAD~1
-    fi
+    rollback_pre_publish_changes "$VERSION" "$PREPARED_COMMIT"
     exit 1
 fi
 
-# Check for GITHUB_TOKEN (warn but allow continuation)
-if [ -z "$GITHUB_TOKEN" ]; then
-    echo -e "${YELLOW}Warning: GITHUB_TOKEN not set${NC}"
-    echo "GitHub release creation may fail. Set with:"
-    echo "  export GITHUB_TOKEN=your_token_here"
-    echo ""
-fi
-
-# Check for GPG_FINGERPRINT (required for signing)
-if [ -z "$GPG_FINGERPRINT" ]; then
-    echo -e "${YELLOW}Warning: GPG_FINGERPRINT not set${NC}"
-    echo "Provider signing will fail. Set with:"
-    echo "  export GPG_FINGERPRINT=your_gpg_fingerprint"
-    echo ""
-fi
-
-# Set GPG_TTY for GPG agent to work properly in non-interactive mode
-export GPG_TTY=$(tty)
-
-# Run goreleaser
-echo -e "${YELLOW}Running goreleaser...${NC}"
-if ! goreleaser release --clean; then
-    echo -e "${RED}Error: goreleaser failed${NC}"
-    echo ""
-    echo "Rolling back changes..."
-    git tag -d "$VERSION"
-    if [ "$CREATED_COMMIT" = true ]; then
-        git reset --hard HEAD~1
-    fi
+# Generate changelog without publishing so CHANGELOG.md can be committed first.
+echo -e "${YELLOW}Generating changelog artifacts (no publish)...${NC}"
+if ! goreleaser release --clean --skip=publish,announce; then
+    echo -e "${RED}Error: goreleaser changelog generation failed${NC}"
+    rollback_pre_publish_changes "$VERSION" "$PREPARED_COMMIT"
     exit 1
 fi
 
 # Merge changelog from goreleaser output
 if ! merge_changelog "$VERSION"; then
     echo -e "${RED}Error: Failed to merge changelog${NC}"
-    echo ""
-    echo "Rolling back changes..."
-    git tag -d "$VERSION"
-    if [ "$CREATED_COMMIT" = true ]; then
-        git reset --hard HEAD~1
-    fi
+    rollback_pre_publish_changes "$VERSION" "$PREPARED_COMMIT"
     exit 1
 fi
 
@@ -313,6 +328,7 @@ if ! git diff --cached --quiet; then
         # Create new commit with changelog
         echo -e "${YELLOW}Creating release commit with changelog...${NC}"
         git commit -m "release: prepare ${VERSION}"
+        PREPARED_COMMIT=true
 
         # Update tag to point to new commit
         echo -e "${YELLOW}Updating tag...${NC}"
@@ -321,6 +337,27 @@ if ! git diff --cached --quiet; then
 else
     echo -e "${YELLOW}No changelog changes to commit${NC}"
     # Tag is already pointing to correct commit
+fi
+
+# Require GitHub token for publish step.
+if [ "$DRY_RUN" = "1" ]; then
+    echo -e "${YELLOW}Dry run mode enabled (RELEASE_DRY_RUN=1). Skipping goreleaser publish step.${NC}"
+else
+    if [ -z "$GITHUB_TOKEN" ]; then
+        echo -e "${RED}Error: GITHUB_TOKEN not set${NC}"
+        echo "Set with: export GITHUB_TOKEN=your_token_here"
+        echo "Release preparation is complete locally, but publish was skipped."
+        exit 1
+    fi
+
+    # Publish release draft only after final commit/tag are in place.
+    echo -e "${YELLOW}Publishing draft release with goreleaser...${NC}"
+    if ! goreleaser release --clean; then
+        echo -e "${RED}Error: goreleaser publish failed${NC}"
+        echo "Local release commit/tag remain prepared. Fix the issue and rerun:"
+        echo "  goreleaser release --clean"
+        exit 1
+    fi
 fi
 
 echo ""
@@ -340,4 +377,4 @@ echo ""
 echo "  4. Publish draft release on GitHub web UI"
 echo ""
 echo "  5. If you need to undo:"
-echo "     git tag -d ${VERSION} && git reset --hard HEAD~1"
+echo "     git tag -d ${VERSION} && git reset --keep HEAD~1"

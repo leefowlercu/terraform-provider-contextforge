@@ -72,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add mcp time server and test gateway creation to integration setup
 
-[Unreleased]: https://github.com/leefowlercu/terraform-provider-contextforge/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/leefowlercu/terraform-provider-contextforge/compare/v0.3.0...HEAD
 [v0.1.0]: https://github.com/leefowlercu/terraform-provider-contextforge/releases/tag/v0.1.0
 
 [v0.2.0]: https://github.com/leefowlercu/terraform-provider-contextforge/compare/v0.1.0...v0.2.0

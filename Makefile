@@ -138,6 +138,15 @@ release: release-check
 	fi
 	@$(MAKE) release-prep VERSION=$(VERSION)
 
+# Dry run release workflow (prepares commit/tag/changelog without GitHub publish)
+release-dry-run: release-check
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION required"; \
+		echo "Usage: make release-dry-run VERSION=vX.Y.Z"; \
+		exit 1; \
+	fi
+	@RELEASE_DRY_RUN=1 bash scripts/prepare-release.sh $(VERSION)
+
 # Display help information
 help:
 	@echo "Available targets:"
@@ -162,12 +171,12 @@ help:
 	@echo "  release-minor            - Bump minor version and create release (X.Y.Z -> X.Y+1.0)"
 	@echo "  release-major            - Bump major version and create release (X.Y.Z -> X+1.0.0)"
 	@echo "  release-prep VERSION=vX.Y.Z - Prepare release with specific version"
+	@echo "  release-dry-run VERSION=vX.Y.Z - Prepare release locally without publishing draft release"
 	@echo "  release VERSION=vX.Y.Z   - Full release workflow"
 	@echo ""
 	@echo "Prerequisites for releases:"
 	@echo "  - goreleaser: go install github.com/goreleaser/goreleaser/v2@latest"
 	@echo "  - GITHUB_TOKEN environment variable (for GitHub releases)"
-	@echo "  - GPG_FINGERPRINT environment variable (for signing)"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make release-patch       # Create patch release (bug fixes)"
@@ -178,4 +187,4 @@ help:
 	@echo "  help                     - Display this help message"
 
 .PHONY: build install test clean integration-test-setup integration-test-teardown integration-test integration-test-all \
-        goreleaser-check goreleaser-snapshot release-check release-patch release-minor release-major release-prep release help
+        goreleaser-check goreleaser-snapshot release-check release-patch release-minor release-major release-prep release release-dry-run help
