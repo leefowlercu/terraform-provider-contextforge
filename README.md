@@ -28,8 +28,10 @@ Terraform provider for IBM ContextForge MCP Gateway management. Manages virtual 
 - [Resources](#resources)
   - [contextforge_agent](#contextforge_agent-resource)
   - [contextforge_gateway](#contextforge_gateway-resource)
+  - [contextforge_prompt](#contextforge_prompt-resource)
   - [contextforge_resource](#contextforge_resource-resource)
   - [contextforge_server](#contextforge_server-resource)
+  - [contextforge_team](#contextforge_team-resource)
   - [contextforge_tool](#contextforge_tool-resource)
 - [Development](#development)
   - [Prerequisites](#prerequisites)
@@ -49,7 +51,7 @@ For more information about ContextForge MCP Gateway, see the [official documenta
 
 ## Architecture
 
-The provider is built using the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1 and communicates with the ContextForge MCP Gateway API via the [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.8.1 client library. The `internal/tfconv` package handles type conversions between the client library's Go types and Terraform Plugin Framework types, including conversions for heterogeneous maps, authentication headers, and RFC3339 timestamps.
+The provider is built using the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1 and communicates with the ContextForge MCP Gateway API via the [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.9.0 client library. The `internal/tfconv` package handles type conversions between the client library's Go types and Terraform Plugin Framework types, including conversions for heterogeneous maps, authentication headers, and RFC3339 timestamps.
 
 ## Requirements
 
@@ -516,6 +518,52 @@ resource "contextforge_gateway" "example" {
 - `capabilities` - Gateway capabilities (dynamic object)
 - `created_at`, `updated_at`, `last_seen` - Timestamps
 
+### contextforge_prompt (Resource)
+
+Manages a ContextForge prompt resource.
+
+**Example Usage:**
+
+```hcl
+resource "contextforge_prompt" "example" {
+  name        = "welcome-message"
+  template    = "Hello {{name}}!"
+  description = "Greeting prompt"
+
+  arguments = [
+    {
+      name        = "name"
+      description = "Name to greet"
+      required    = true
+    }
+  ]
+  tags = ["prompt", "greeting"]
+}
+```
+
+**Required Attributes:**
+
+- `name` - Prompt name
+- `template` - Prompt template
+
+**Optional Attributes:**
+
+- `custom_name` - Custom prompt name override
+- `display_name` - User-facing prompt display name
+- `description` - Prompt description
+- `arguments` - Prompt argument definitions
+- `tags` - Prompt tags
+- `team_id` - Team ID
+- `visibility` - Visibility setting
+
+**Read-Only Attributes:**
+
+- `id` - Prompt unique identifier
+- `is_active` - Whether the prompt is active
+- `enabled` - Whether the prompt is enabled
+- `metrics` - Prompt performance metrics object
+- `created_at`, `updated_at` - Timestamps
+
 ### contextforge_resource (Resource)
 
 Manages a ContextForge resource entity.
@@ -595,6 +643,40 @@ resource "contextforge_server" "example" {
 - `id` - Server unique identifier
 - `is_active` - Whether the server is active
 - `metrics` - Performance metrics object (total_executions, successful_executions, failed_executions, failure_rate, response times)
+- `created_at`, `updated_at` - Timestamps
+
+### contextforge_team (Resource)
+
+Manages a ContextForge team resource.
+
+**Example Usage:**
+
+```hcl
+resource "contextforge_team" "example" {
+  name        = "platform-engineering"
+  description = "Platform engineering team"
+  visibility  = "private"
+}
+```
+
+**Required Attributes:**
+
+- `name` - Team name
+
+**Optional Attributes:**
+
+- `slug` - Team slug (requires replacement when changed)
+- `description` - Team description
+- `visibility` - Team visibility
+- `max_members` - Maximum number of members
+
+**Read-Only Attributes:**
+
+- `id` - Team unique identifier
+- `is_personal` - Whether this is a personal team
+- `member_count` - Current number of members
+- `is_active` - Whether the team is active
+- `created_by` - Team creator
 - `created_at`, `updated_at` - Timestamps
 
 ### contextforge_tool (Resource)
@@ -776,4 +858,4 @@ Contributions are welcome. When contributing:
 
 **Dependencies:**
 - [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework) v1.16.1
-- [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.8.1 - Go client library for ContextForge MCP Gateway
+- [go-contextforge](https://github.com/leefowlercu/go-contextforge) v0.9.0 - Go client library for ContextForge MCP Gateway

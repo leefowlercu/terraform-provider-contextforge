@@ -21,20 +21,26 @@ var _ datasource.DataSource = &promptDataSource{}
 var _ datasource.DataSourceWithConfigure = &promptDataSource{}
 
 type promptDataSourceModel struct {
-	ID          types.String `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	Template    types.String `tfsdk:"template"`
-	Arguments   types.List   `tfsdk:"arguments"`
-	IsActive    types.Bool   `tfsdk:"is_active"`
-	Tags        types.List   `tfsdk:"tags"`
-	Metrics     types.Object `tfsdk:"metrics"`
-	TeamID      types.String `tfsdk:"team_id"`
-	Team        types.String `tfsdk:"team"`
-	OwnerEmail  types.String `tfsdk:"owner_email"`
-	Visibility  types.String `tfsdk:"visibility"`
-	CreatedAt   types.String `tfsdk:"created_at"`
-	UpdatedAt   types.String `tfsdk:"updated_at"`
+	ID             types.String `tfsdk:"id"`
+	Name           types.String `tfsdk:"name"`
+	OriginalName   types.String `tfsdk:"original_name"`
+	CustomName     types.String `tfsdk:"custom_name"`
+	CustomNameSlug types.String `tfsdk:"custom_name_slug"`
+	DisplayName    types.String `tfsdk:"display_name"`
+	GatewaySlug    types.String `tfsdk:"gateway_slug"`
+	Description    types.String `tfsdk:"description"`
+	Template       types.String `tfsdk:"template"`
+	Arguments      types.List   `tfsdk:"arguments"`
+	IsActive       types.Bool   `tfsdk:"is_active"`
+	Enabled        types.Bool   `tfsdk:"enabled"`
+	Tags           types.List   `tfsdk:"tags"`
+	Metrics        types.Object `tfsdk:"metrics"`
+	TeamID         types.String `tfsdk:"team_id"`
+	Team           types.String `tfsdk:"team"`
+	OwnerEmail     types.String `tfsdk:"owner_email"`
+	Visibility     types.String `tfsdk:"visibility"`
+	CreatedAt      types.String `tfsdk:"created_at"`
+	UpdatedAt      types.String `tfsdk:"updated_at"`
 
 	CreatedBy         types.String `tfsdk:"created_by"`
 	CreatedFromIP     types.String `tfsdk:"created_from_ip"`
@@ -90,6 +96,31 @@ func (d *promptDataSource) Schema(ctx context.Context, req datasource.SchemaRequ
 				Description:         "Prompt name",
 				Computed:            true,
 			},
+			"original_name": schema.StringAttribute{
+				MarkdownDescription: "Original prompt name from the gateway",
+				Description:         "Original prompt name from the gateway",
+				Computed:            true,
+			},
+			"custom_name": schema.StringAttribute{
+				MarkdownDescription: "Custom prompt name override",
+				Description:         "Custom prompt name override",
+				Computed:            true,
+			},
+			"custom_name_slug": schema.StringAttribute{
+				MarkdownDescription: "Slug generated from custom prompt name",
+				Description:         "Slug generated from custom prompt name",
+				Computed:            true,
+			},
+			"display_name": schema.StringAttribute{
+				MarkdownDescription: "User-facing prompt display name",
+				Description:         "User-facing prompt display name",
+				Computed:            true,
+			},
+			"gateway_slug": schema.StringAttribute{
+				MarkdownDescription: "Gateway slug the prompt belongs to",
+				Description:         "Gateway slug the prompt belongs to",
+				Computed:            true,
+			},
 			"description": schema.StringAttribute{
 				MarkdownDescription: "Prompt description",
 				Description:         "Prompt description",
@@ -127,6 +158,11 @@ func (d *promptDataSource) Schema(ctx context.Context, req datasource.SchemaRequ
 			"is_active": schema.BoolAttribute{
 				MarkdownDescription: "Whether the prompt is active",
 				Description:         "Whether the prompt is active",
+				Computed:            true,
+			},
+			"enabled": schema.BoolAttribute{
+				MarkdownDescription: "Whether the prompt is enabled",
+				Description:         "Whether the prompt is enabled",
 				Computed:            true,
 			},
 			"tags": schema.ListAttribute{
@@ -185,20 +221,32 @@ func (d *promptDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 		return
 	}
 
-	// Get prompt using List and filter (no Get metadata method)
-	prompts, _, err := d.client.Prompts.List(ctx, &contextforge.PromptListOptions{IncludeInactive: true})
-	if err != nil {
-		resp.Diagnostics.AddError("Failed to List Prompts", fmt.Sprintf("Unable to list prompts; %v", err))
-		return
-	}
-
-	var prompt *contextforge.Prompt
+	// Prompts API does not expose a metadata GET by ID endpoint, so use paginated list + filter.
 	targetID := data.ID.ValueString()
-	for _, p := range prompts {
-		if p.ID == targetID {
-			prompt = p
+	var prompt *contextforge.Prompt
+	opts := &contextforge.PromptListOptions{IncludeInactive: true}
+
+	for {
+		prompts, listResp, err := d.client.Prompts.List(ctx, opts)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to List Prompts", fmt.Sprintf("Unable to list prompts; %v", err))
+			return
+		}
+
+		for _, p := range prompts {
+			if p.ID == targetID {
+				prompt = p
+				break
+			}
+		}
+		if prompt != nil {
 			break
 		}
+
+		if listResp == nil || listResp.NextCursor == "" {
+			break
+		}
+		opts.Cursor = listResp.NextCursor
 	}
 
 	if prompt == nil {
@@ -208,9 +256,15 @@ func (d *promptDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 
 	data.ID = types.StringValue(prompt.ID)
 	data.Name = types.StringValue(prompt.Name)
+	data.OriginalName = types.StringPointerValue(prompt.OriginalName)
+	data.CustomName = types.StringPointerValue(prompt.CustomName)
+	data.CustomNameSlug = types.StringPointerValue(prompt.CustomNameSlug)
+	data.DisplayName = types.StringPointerValue(prompt.DisplayName)
+	data.GatewaySlug = types.StringPointerValue(prompt.GatewaySlug)
 	data.Description = types.StringPointerValue(prompt.Description)
 	data.Template = types.StringValue(prompt.Template)
 	data.IsActive = types.BoolValue(prompt.IsActive)
+	data.Enabled = types.BoolValue(prompt.Enabled || prompt.IsActive)
 
 	// Map arguments
 	if len(prompt.Arguments) > 0 {

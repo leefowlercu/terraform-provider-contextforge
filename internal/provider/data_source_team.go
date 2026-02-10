@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -148,24 +149,16 @@ func (d *teamDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	// Get team using List and filter (Get endpoint has authentication issues in v0.8.0)
-	teams, _, err := d.client.Teams.List(ctx, nil)
+	team, httpResp, err := d.client.Teams.Get(ctx, data.ID.ValueString())
+	if err != nil && httpResp != nil && (httpResp.StatusCode == http.StatusUnauthorized || httpResp.StatusCode == http.StatusForbidden) {
+		team, err = findTeamByIDViaList(ctx, d.client, data.ID.ValueString())
+	}
 	if err != nil {
-		resp.Diagnostics.AddError("Failed to List Teams", fmt.Sprintf("Unable to list teams; %v", err))
+		resp.Diagnostics.AddError("Failed to Read Team", fmt.Sprintf("Unable to read team with ID %s; %v", data.ID.ValueString(), err))
 		return
 	}
-
-	var team *contextforge.Team
-	targetID := data.ID.ValueString()
-	for _, t := range teams {
-		if t.ID == targetID {
-			team = t
-			break
-		}
-	}
-
 	if team == nil {
-		resp.Diagnostics.AddError("Team Not Found", fmt.Sprintf("Unable to find team with ID %s", targetID))
+		resp.Diagnostics.AddError("Failed to Read Team", fmt.Sprintf("Unable to read team with ID %s; team not found", data.ID.ValueString()))
 		return
 	}
 

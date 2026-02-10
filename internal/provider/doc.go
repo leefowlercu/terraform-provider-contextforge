@@ -112,29 +112,29 @@
 //   - The API has no dedicated Get metadata endpoint
 //   - The Get endpoint has authentication or permission issues
 //
-// Example (used by contextforge_resource, contextforge_prompt, contextforge_team):
+// Example (used by contextforge_prompt):
 //
-//	func (d *resourceDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+//	func (d *promptDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 //	    // ... parse config ...
 //
-//	    // List all resources and filter by ID
-//	    resources, _, err := d.client.Resources.List(ctx, nil)
+//	    // List all prompts and filter by ID
+//	    prompts, _, err := d.client.Prompts.List(ctx, nil)
 //	    if err != nil {
-//	        resp.Diagnostics.AddError("Failed to List Resources", err.Error())
+//	        resp.Diagnostics.AddError("Failed to List Prompts", err.Error())
 //	        return
 //	    }
 //
-//	    var resource *contextforge.Resource
+//	    var prompt *contextforge.Prompt
 //	    targetID := data.ID.ValueString()
-//	    for _, r := range resources {
-//	        if r.ID.String() == targetID {
-//	            resource = r
+//	    for _, p := range prompts {
+//	        if p.ID == targetID {
+//	            prompt = p
 //	            break
 //	        }
 //	    }
 //
-//	    if resource == nil {
-//	        resp.Diagnostics.AddError("Resource Not Found", fmt.Sprintf("Unable to find resource with ID %s", targetID))
+//	    if prompt == nil {
+//	        resp.Diagnostics.AddError("Prompt Not Found", fmt.Sprintf("Unable to find prompt with ID %s", targetID))
 //	        return
 //	    }
 //

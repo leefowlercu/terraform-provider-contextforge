@@ -41,16 +41,19 @@ type gatewayResourceModel struct {
 	Capabilities types.Dynamic `tfsdk:"capabilities"`
 
 	// Authentication fields
-	PassthroughHeaders types.List    `tfsdk:"passthrough_headers"`
-	AuthType           types.String  `tfsdk:"auth_type"`
-	AuthUsername       types.String  `tfsdk:"auth_username"`
-	AuthPassword       types.String  `tfsdk:"auth_password"`
-	AuthToken          types.String  `tfsdk:"auth_token"`
-	AuthHeaderKey      types.String  `tfsdk:"auth_header_key"`
-	AuthHeaderValue    types.String  `tfsdk:"auth_header_value"`
-	AuthHeaders        types.List    `tfsdk:"auth_headers"`
-	AuthValue          types.String  `tfsdk:"auth_value"`
-	OAuthConfig        types.Dynamic `tfsdk:"oauth_config"`
+	PassthroughHeaders        types.List    `tfsdk:"passthrough_headers"`
+	AuthType                  types.String  `tfsdk:"auth_type"`
+	AuthUsername              types.String  `tfsdk:"auth_username"`
+	AuthPassword              types.String  `tfsdk:"auth_password"`
+	AuthToken                 types.String  `tfsdk:"auth_token"`
+	AuthHeaderKey             types.String  `tfsdk:"auth_header_key"`
+	AuthHeaderValue           types.String  `tfsdk:"auth_header_value"`
+	AuthHeaders               types.List    `tfsdk:"auth_headers"`
+	AuthValue                 types.String  `tfsdk:"auth_value"`
+	OAuthConfig               types.Dynamic `tfsdk:"oauth_config"`
+	AuthQueryParamKey         types.String  `tfsdk:"auth_query_param_key"`
+	AuthQueryParamValue       types.String  `tfsdk:"auth_query_param_value"`
+	AuthQueryParamValueMasked types.String  `tfsdk:"auth_query_param_value_masked"`
 
 	// Organizational fields
 	Tags       types.List   `tfsdk:"tags"`
@@ -65,18 +68,20 @@ type gatewayResourceModel struct {
 	LastSeen  types.String `tfsdk:"last_seen"`
 
 	// Metadata (read-only)
-	CreatedBy         types.String `tfsdk:"created_by"`
-	CreatedFromIP     types.String `tfsdk:"created_from_ip"`
-	CreatedVia        types.String `tfsdk:"created_via"`
-	CreatedUserAgent  types.String `tfsdk:"created_user_agent"`
-	ModifiedBy        types.String `tfsdk:"modified_by"`
-	ModifiedFromIP    types.String `tfsdk:"modified_from_ip"`
-	ModifiedVia       types.String `tfsdk:"modified_via"`
-	ModifiedUserAgent types.String `tfsdk:"modified_user_agent"`
-	ImportBatchID     types.String `tfsdk:"import_batch_id"`
-	FederationSource  types.String `tfsdk:"federation_source"`
-	Version           types.Int64  `tfsdk:"version"`
-	Slug              types.String `tfsdk:"slug"`
+	CreatedBy              types.String `tfsdk:"created_by"`
+	CreatedFromIP          types.String `tfsdk:"created_from_ip"`
+	CreatedVia             types.String `tfsdk:"created_via"`
+	CreatedUserAgent       types.String `tfsdk:"created_user_agent"`
+	ModifiedBy             types.String `tfsdk:"modified_by"`
+	ModifiedFromIP         types.String `tfsdk:"modified_from_ip"`
+	ModifiedVia            types.String `tfsdk:"modified_via"`
+	ModifiedUserAgent      types.String `tfsdk:"modified_user_agent"`
+	ImportBatchID          types.String `tfsdk:"import_batch_id"`
+	FederationSource       types.String `tfsdk:"federation_source"`
+	Version                types.Int64  `tfsdk:"version"`
+	Slug                   types.String `tfsdk:"slug"`
+	RefreshIntervalSeconds types.Int64  `tfsdk:"refresh_interval_seconds"`
+	LastRefreshAt          types.String `tfsdk:"last_refresh_at"`
 }
 
 // NewGatewayResource is a helper function to instantiate the gateway resource.
@@ -208,6 +213,24 @@ func (r *gatewayResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:            true,
 				Sensitive:           true,
 			},
+			"auth_query_param_key": schema.StringAttribute{
+				MarkdownDescription: "Authentication query parameter key",
+				Description:         "Authentication query parameter key",
+				Optional:            true,
+				Computed:            true,
+			},
+			"auth_query_param_value": schema.StringAttribute{
+				MarkdownDescription: "Authentication query parameter value",
+				Description:         "Authentication query parameter value",
+				Optional:            true,
+				Computed:            true,
+				Sensitive:           true,
+			},
+			"auth_query_param_value_masked": schema.StringAttribute{
+				MarkdownDescription: "Masked authentication query parameter value",
+				Description:         "Masked authentication query parameter value",
+				Computed:            true,
+			},
 
 			// Organizational fields
 			"tags": schema.ListAttribute{
@@ -318,6 +341,16 @@ func (r *gatewayResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Description:         "Gateway slug",
 				Computed:            true,
 			},
+			"refresh_interval_seconds": schema.Int64Attribute{
+				MarkdownDescription: "Gateway automatic refresh interval in seconds",
+				Description:         "Gateway automatic refresh interval in seconds",
+				Computed:            true,
+			},
+			"last_refresh_at": schema.StringAttribute{
+				MarkdownDescription: "Last gateway refresh timestamp (RFC3339 format)",
+				Description:         "Last gateway refresh timestamp (RFC3339 format)",
+				Computed:            true,
+			},
 		},
 	}
 }
@@ -410,6 +443,14 @@ func (r *gatewayResource) Create(ctx context.Context, req resource.CreateRequest
 	if !data.AuthValue.IsNull() && !data.AuthValue.IsUnknown() {
 		authValue := data.AuthValue.ValueString()
 		gateway.AuthValue = &authValue
+	}
+	if !data.AuthQueryParamKey.IsNull() && !data.AuthQueryParamKey.IsUnknown() {
+		authQueryParamKey := data.AuthQueryParamKey.ValueString()
+		gateway.AuthQueryParamKey = &authQueryParamKey
+	}
+	if !data.AuthQueryParamValue.IsNull() && !data.AuthQueryParamValue.IsUnknown() {
+		authQueryParamValue := data.AuthQueryParamValue.ValueString()
+		gateway.AuthQueryParamValue = &authQueryParamValue
 	}
 
 	// Map oauth_config (Dynamic type)
@@ -591,6 +632,14 @@ func (r *gatewayResource) Update(ctx context.Context, req resource.UpdateRequest
 		authValue := data.AuthValue.ValueString()
 		gateway.AuthValue = &authValue
 	}
+	if !data.AuthQueryParamKey.IsNull() && !data.AuthQueryParamKey.IsUnknown() {
+		authQueryParamKey := data.AuthQueryParamKey.ValueString()
+		gateway.AuthQueryParamKey = &authQueryParamKey
+	}
+	if !data.AuthQueryParamValue.IsNull() && !data.AuthQueryParamValue.IsUnknown() {
+		authQueryParamValue := data.AuthQueryParamValue.ValueString()
+		gateway.AuthQueryParamValue = &authQueryParamValue
+	}
 
 	// OAuth config
 	if !data.OAuthConfig.IsNull() && !data.OAuthConfig.IsUnknown() {
@@ -741,6 +790,13 @@ func (r *gatewayResource) mapGatewayToState(ctx context.Context, gateway *contex
 	data.AuthToken = types.StringPointerValue(gateway.AuthToken)
 	data.AuthHeaderKey = types.StringPointerValue(gateway.AuthHeaderKey)
 	data.AuthHeaderValue = types.StringPointerValue(gateway.AuthHeaderValue)
+	data.AuthQueryParamKey = types.StringPointerValue(gateway.AuthQueryParamKey)
+	if gateway.AuthQueryParamValue != nil {
+		data.AuthQueryParamValue = types.StringPointerValue(gateway.AuthQueryParamValue)
+	} else {
+		data.AuthQueryParamValue = types.StringNull()
+	}
+	data.AuthQueryParamValueMasked = types.StringPointerValue(gateway.AuthQueryParamValueMasked)
 
 	// Auth headers (list of maps)
 	if gateway.AuthHeaders != nil {
@@ -827,4 +883,14 @@ func (r *gatewayResource) mapGatewayToState(ctx context.Context, gateway *contex
 	}
 
 	data.Slug = types.StringPointerValue(gateway.Slug)
+	if gateway.RefreshIntervalSeconds != nil {
+		data.RefreshIntervalSeconds = types.Int64Value(int64(*gateway.RefreshIntervalSeconds))
+	} else {
+		data.RefreshIntervalSeconds = types.Int64Null()
+	}
+	if gateway.LastRefreshAt != nil && !gateway.LastRefreshAt.Time.IsZero() {
+		data.LastRefreshAt = types.StringValue(gateway.LastRefreshAt.Time.Format(time.RFC3339))
+	} else {
+		data.LastRefreshAt = types.StringNull()
+	}
 }

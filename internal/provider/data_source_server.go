@@ -29,10 +29,13 @@ type serverDataSourceModel struct {
 	ID types.String `tfsdk:"id"`
 
 	// Core fields
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	Icon        types.String `tfsdk:"icon"`
-	IsActive    types.Bool   `tfsdk:"is_active"`
+	Name         types.String  `tfsdk:"name"`
+	Description  types.String  `tfsdk:"description"`
+	Icon         types.String  `tfsdk:"icon"`
+	IsActive     types.Bool    `tfsdk:"is_active"`
+	Enabled      types.Bool    `tfsdk:"enabled"`
+	OAuthEnabled types.Bool    `tfsdk:"oauth_enabled"`
+	OAuthConfig  types.Dynamic `tfsdk:"oauth_config"`
 
 	// Association fields
 	AssociatedTools     types.List `tfsdk:"associated_tools"`
@@ -124,6 +127,22 @@ func (d *serverDataSource) Schema(ctx context.Context, req datasource.SchemaRequ
 				MarkdownDescription: "Whether the server is active",
 				Description:         "Whether the server is active",
 				Computed:            true,
+			},
+			"enabled": schema.BoolAttribute{
+				MarkdownDescription: "Whether the server is enabled",
+				Description:         "Whether the server is enabled",
+				Computed:            true,
+			},
+			"oauth_enabled": schema.BoolAttribute{
+				MarkdownDescription: "Whether OAuth is enabled for this server",
+				Description:         "Whether OAuth is enabled for this server",
+				Computed:            true,
+			},
+			"oauth_config": schema.DynamicAttribute{
+				MarkdownDescription: "OAuth configuration metadata",
+				Description:         "OAuth configuration metadata",
+				Computed:            true,
+				Sensitive:           true,
 			},
 
 			// Association fields
@@ -336,6 +355,22 @@ func (d *serverDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	data.Description = types.StringPointerValue(server.Description)
 	data.Icon = types.StringPointerValue(server.Icon)
 	data.IsActive = types.BoolValue(server.IsActive)
+	data.Enabled = types.BoolValue(server.Enabled || server.IsActive)
+	data.OAuthEnabled = types.BoolValue(server.OAuthEnabled)
+
+	if server.OAuthConfig != nil {
+		oauthConfigValue, err := tfconv.ConvertMapToObjectValue(ctx, server.OAuthConfig)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to Convert OAuth Config",
+				fmt.Sprintf("Unable to convert oauth_config to object value; %v", err),
+			)
+			return
+		}
+		data.OAuthConfig = types.DynamicValue(oauthConfigValue)
+	} else {
+		data.OAuthConfig = types.DynamicNull()
+	}
 
 	// Map association fields - string slices
 	if server.AssociatedTools != nil {

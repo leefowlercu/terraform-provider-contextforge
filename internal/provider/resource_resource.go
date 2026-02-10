@@ -409,34 +409,18 @@ func (r *resourceResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	// Get resource from API using List and filter
-	// Note: The API doesn't have a dedicated Get endpoint for resources by ID,
-	// so we must use List() and filter by ID
-	resources, _, err := r.client.Resources.List(ctx, nil)
+	foundResource, httpResp, err := r.client.Resources.GetInfo(ctx, data.ID.ValueString(), &contextforge.ResourceInfoOptions{
+		IncludeInactive: true,
+	})
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Failed to List Resources",
-			fmt.Sprintf("Unable to list resources; %v", err),
-		)
-		return
-	}
-
-	// Find the resource by ID
-	var foundResource *contextforge.Resource
-	targetID := data.ID.ValueString()
-	for _, res := range resources {
-		if res.ID != nil && res.ID.String() == targetID {
-			foundResource = res
-			break
+		if httpResp != nil && httpResp.StatusCode == 404 {
+			resp.State.RemoveResource(ctx)
+			return
 		}
-	}
-
-	if foundResource == nil {
 		resp.Diagnostics.AddError(
-			"Resource Not Found",
-			fmt.Sprintf("Unable to find resource with ID %s", targetID),
+			"Failed to Read Resource",
+			fmt.Sprintf("Unable to read resource with ID %s; %v", data.ID.ValueString(), err),
 		)
-		resp.State.RemoveResource(ctx)
 		return
 	}
 
@@ -527,30 +511,17 @@ func (r *resourceResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	// The Update API response doesn't include all fields (e.g., team_id is null).
-	// Workaround: Do a fresh GET via List and filter to get complete state.
-	resources, _, err := r.client.Resources.List(ctx, nil)
+	updatedResource, httpResp, err := r.client.Resources.GetInfo(ctx, resourceID, &contextforge.ResourceInfoOptions{
+		IncludeInactive: true,
+	})
 	if err != nil {
+		if httpResp != nil && httpResp.StatusCode == 404 {
+			resp.State.RemoveResource(ctx)
+			return
+		}
 		resp.Diagnostics.AddError(
 			"Failed to Read Resource After Update",
 			fmt.Sprintf("Unable to read resource after update; %v", err),
-		)
-		return
-	}
-
-	// Find the updated resource by ID
-	var updatedResource *contextforge.Resource
-	for _, res := range resources {
-		if res.ID != nil && res.ID.String() == resourceID {
-			updatedResource = res
-			break
-		}
-	}
-
-	if updatedResource == nil {
-		resp.Diagnostics.AddError(
-			"Resource Not Found After Update",
-			fmt.Sprintf("Unable to find resource with ID %s after update", resourceID),
 		)
 		return
 	}

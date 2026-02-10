@@ -9,9 +9,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/leefowlercu/go-contextforge/contextforge"
@@ -42,15 +42,19 @@ type agentResourceModel struct {
 	EndpointURL types.String `tfsdk:"endpoint_url"`
 
 	// Optional fields
-	Description     types.String  `tfsdk:"description"`
-	AgentType       types.String  `tfsdk:"agent_type"`
-	ProtocolVersion types.String  `tfsdk:"protocol_version"`
-	Config          types.Dynamic `tfsdk:"config"`
-	AuthType        types.String  `tfsdk:"auth_type"`
-	Enabled         types.Bool    `tfsdk:"enabled"`
-	Tags            types.List    `tfsdk:"tags"`
-	TeamID          types.String  `tfsdk:"team_id"`
-	Visibility      types.String  `tfsdk:"visibility"`
+	Description               types.String  `tfsdk:"description"`
+	AgentType                 types.String  `tfsdk:"agent_type"`
+	ProtocolVersion           types.String  `tfsdk:"protocol_version"`
+	Config                    types.Dynamic `tfsdk:"config"`
+	AuthType                  types.String  `tfsdk:"auth_type"`
+	OAuthConfig               types.Dynamic `tfsdk:"oauth_config"`
+	AuthQueryParamKey         types.String  `tfsdk:"auth_query_param_key"`
+	AuthQueryParamValue       types.String  `tfsdk:"auth_query_param_value"`
+	AuthQueryParamValueMasked types.String  `tfsdk:"auth_query_param_value_masked"`
+	Enabled                   types.Bool    `tfsdk:"enabled"`
+	Tags                      types.List    `tfsdk:"tags"`
+	TeamID                    types.String  `tfsdk:"team_id"`
+	Visibility                types.String  `tfsdk:"visibility"`
 
 	// Computed fields
 	Capabilities types.Dynamic `tfsdk:"capabilities"`
@@ -156,6 +160,37 @@ func (r *agentResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				MarkdownDescription: "Authentication type",
 				Description:         "Authentication type",
 				Optional:            true,
+			},
+			"oauth_config": schema.DynamicAttribute{
+				MarkdownDescription: "OAuth configuration",
+				Description:         "OAuth configuration",
+				Optional:            true,
+				Computed:            true,
+				Sensitive:           true,
+			},
+			"auth_query_param_key": schema.StringAttribute{
+				MarkdownDescription: "Authentication query parameter key",
+				Description:         "Authentication query parameter key",
+				Optional:            true,
+				Computed:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"auth_query_param_value": schema.StringAttribute{
+				MarkdownDescription: "Authentication query parameter value",
+				Description:         "Authentication query parameter value",
+				Optional:            true,
+				Computed:            true,
+				Sensitive:           true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"auth_query_param_value_masked": schema.StringAttribute{
+				MarkdownDescription: "Masked authentication query parameter value",
+				Description:         "Masked authentication query parameter value",
+				Computed:            true,
 			},
 			"enabled": schema.BoolAttribute{
 				MarkdownDescription: "Whether the agent is enabled (defaults to true)",
@@ -386,6 +421,44 @@ func (r *agentResource) Create(ctx context.Context, req resource.CreateRequest, 
 	if !data.AuthType.IsNull() && !data.AuthType.IsUnknown() {
 		authType := data.AuthType.ValueString()
 		agent.AuthType = &authType
+	}
+	if !data.OAuthConfig.IsNull() && !data.OAuthConfig.IsUnknown() {
+		oauthMap, err := tfconv.ConvertObjectValueToMap(ctx, data.OAuthConfig.UnderlyingValue())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to Convert OAuth Config",
+				fmt.Sprintf("Unable to convert oauth_config from object value; %v", err),
+			)
+			return
+		}
+		agent.OAuthConfig = oauthMap
+	}
+	if !data.AuthQueryParamKey.IsNull() && !data.AuthQueryParamKey.IsUnknown() {
+		authQueryParamKey := data.AuthQueryParamKey.ValueString()
+		agent.AuthQueryParamKey = &authQueryParamKey
+	}
+	if !data.AuthQueryParamValue.IsNull() && !data.AuthQueryParamValue.IsUnknown() {
+		authQueryParamValue := data.AuthQueryParamValue.ValueString()
+		agent.AuthQueryParamValue = &authQueryParamValue
+	}
+	if !data.OAuthConfig.IsNull() && !data.OAuthConfig.IsUnknown() {
+		oauthMap, err := tfconv.ConvertObjectValueToMap(ctx, data.OAuthConfig.UnderlyingValue())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to Convert OAuth Config",
+				fmt.Sprintf("Unable to convert oauth_config from object value; %v", err),
+			)
+			return
+		}
+		agent.OAuthConfig = oauthMap
+	}
+	if !data.AuthQueryParamKey.IsNull() && !data.AuthQueryParamKey.IsUnknown() {
+		authQueryParamKey := data.AuthQueryParamKey.ValueString()
+		agent.AuthQueryParamKey = &authQueryParamKey
+	}
+	if !data.AuthQueryParamValue.IsNull() && !data.AuthQueryParamValue.IsUnknown() {
+		authQueryParamValue := data.AuthQueryParamValue.ValueString()
+		agent.AuthQueryParamValue = &authQueryParamValue
 	}
 
 	// Tags
@@ -663,6 +736,21 @@ func (r *agentResource) mapAgentToState(ctx context.Context, agent *contextforge
 	}
 
 	data.AuthType = types.StringPointerValue(agent.AuthType)
+	if agent.OAuthConfig != nil {
+		oauthConfigValue, err := tfconv.ConvertMapToObjectValue(ctx, agent.OAuthConfig)
+		if err != nil {
+			diags.AddError(
+				"Failed to Convert OAuth Config",
+				fmt.Sprintf("Unable to convert oauth_config to object value; %v", err),
+			)
+			return
+		}
+		data.OAuthConfig = types.DynamicValue(oauthConfigValue)
+	} else {
+		data.OAuthConfig = types.DynamicNull()
+	}
+	data.AuthQueryParamKey = types.StringPointerValue(agent.AuthQueryParamKey)
+	data.AuthQueryParamValueMasked = types.StringPointerValue(agent.AuthQueryParamValueMasked)
 	data.Enabled = types.BoolValue(agent.Enabled)
 	data.Reachable = types.BoolValue(agent.Reachable)
 

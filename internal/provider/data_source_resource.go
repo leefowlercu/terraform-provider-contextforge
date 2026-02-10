@@ -300,32 +300,13 @@ func (d *resourceDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
-	// Get resource from API using List and filter
-	// Note: The API doesn't have a dedicated metadata endpoint for resources by ID,
-	// so we must use List() and filter by ID
-	resources, _, err := d.client.Resources.List(ctx, nil)
+	resource, _, err := d.client.Resources.GetInfo(ctx, data.ID.ValueString(), &contextforge.ResourceInfoOptions{
+		IncludeInactive: true,
+	})
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Failed to List Resources",
-			fmt.Sprintf("Unable to list resources; %v", err),
-		)
-		return
-	}
-
-	// Find the resource by ID
-	var resource *contextforge.Resource
-	targetID := data.ID.ValueString()
-	for _, r := range resources {
-		if r.ID != nil && r.ID.String() == targetID {
-			resource = r
-			break
-		}
-	}
-
-	if resource == nil {
-		resp.Diagnostics.AddError(
-			"Resource Not Found",
-			fmt.Sprintf("Unable to find resource with ID %s", targetID),
+			"Failed to Read Resource",
+			fmt.Sprintf("Unable to read resource with ID %s; %v", data.ID.ValueString(), err),
 		)
 		return
 	}

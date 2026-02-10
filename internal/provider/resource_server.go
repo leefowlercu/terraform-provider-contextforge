@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/leefowlercu/go-contextforge/contextforge"
+	"github.com/leefowlercu/terraform-provider-contextforge/internal/tfconv"
 )
 
 type serverResource struct {
@@ -32,11 +33,14 @@ var _ resource.ResourceWithImportState = &serverResource{}
 // serverResourceModel defines the resource model.
 type serverResourceModel struct {
 	// Core fields
-	ID          types.String `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Description types.String `tfsdk:"description"`
-	Icon        types.String `tfsdk:"icon"`
-	IsActive    types.Bool   `tfsdk:"is_active"`
+	ID           types.String  `tfsdk:"id"`
+	Name         types.String  `tfsdk:"name"`
+	Description  types.String  `tfsdk:"description"`
+	Icon         types.String  `tfsdk:"icon"`
+	IsActive     types.Bool    `tfsdk:"is_active"`
+	Enabled      types.Bool    `tfsdk:"enabled"`
+	OAuthEnabled types.Bool    `tfsdk:"oauth_enabled"`
+	OAuthConfig  types.Dynamic `tfsdk:"oauth_config"`
 
 	// Association fields
 	AssociatedTools     types.List `tfsdk:"associated_tools"`
@@ -119,6 +123,22 @@ func (r *serverResource) Schema(ctx context.Context, req resource.SchemaRequest,
 				MarkdownDescription: "Whether the server is active",
 				Description:         "Whether the server is active",
 				Computed:            true,
+			},
+			"enabled": schema.BoolAttribute{
+				MarkdownDescription: "Whether the server is enabled",
+				Description:         "Whether the server is enabled",
+				Computed:            true,
+			},
+			"oauth_enabled": schema.BoolAttribute{
+				MarkdownDescription: "Whether OAuth is enabled for this server",
+				Description:         "Whether OAuth is enabled for this server",
+				Computed:            true,
+			},
+			"oauth_config": schema.DynamicAttribute{
+				MarkdownDescription: "OAuth configuration metadata",
+				Description:         "OAuth configuration metadata",
+				Computed:            true,
+				Sensitive:           true,
 			},
 
 			// Association fields
@@ -426,6 +446,21 @@ func (r *serverResource) Create(ctx context.Context, req resource.CreateRequest,
 	data.Description = types.StringPointerValue(createdServer.Description)
 	data.Icon = types.StringPointerValue(createdServer.Icon)
 	data.IsActive = types.BoolValue(createdServer.IsActive)
+	data.Enabled = types.BoolValue(createdServer.Enabled || createdServer.IsActive)
+	data.OAuthEnabled = types.BoolValue(createdServer.OAuthEnabled)
+	if createdServer.OAuthConfig != nil {
+		oauthConfigValue, err := tfconv.ConvertMapToObjectValue(ctx, createdServer.OAuthConfig)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to Convert OAuth Config",
+				fmt.Sprintf("Unable to convert oauth_config to object value; %v", err),
+			)
+			return
+		}
+		data.OAuthConfig = types.DynamicValue(oauthConfigValue)
+	} else {
+		data.OAuthConfig = types.DynamicNull()
+	}
 
 	// Map associations
 	if createdServer.AssociatedTools != nil {
@@ -554,6 +589,21 @@ func (r *serverResource) Read(ctx context.Context, req resource.ReadRequest, res
 	data.Description = types.StringPointerValue(server.Description)
 	data.Icon = types.StringPointerValue(server.Icon)
 	data.IsActive = types.BoolValue(server.IsActive)
+	data.Enabled = types.BoolValue(server.Enabled || server.IsActive)
+	data.OAuthEnabled = types.BoolValue(server.OAuthEnabled)
+	if server.OAuthConfig != nil {
+		oauthConfigValue, err := tfconv.ConvertMapToObjectValue(ctx, server.OAuthConfig)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to Convert OAuth Config",
+				fmt.Sprintf("Unable to convert oauth_config to object value; %v", err),
+			)
+			return
+		}
+		data.OAuthConfig = types.DynamicValue(oauthConfigValue)
+	} else {
+		data.OAuthConfig = types.DynamicNull()
+	}
 
 	// Map associations
 	if server.AssociatedTools != nil {
@@ -769,6 +819,21 @@ func (r *serverResource) Update(ctx context.Context, req resource.UpdateRequest,
 	data.Description = types.StringPointerValue(updatedServer.Description)
 	data.Icon = types.StringPointerValue(updatedServer.Icon)
 	data.IsActive = types.BoolValue(updatedServer.IsActive)
+	data.Enabled = types.BoolValue(updatedServer.Enabled || updatedServer.IsActive)
+	data.OAuthEnabled = types.BoolValue(updatedServer.OAuthEnabled)
+	if updatedServer.OAuthConfig != nil {
+		oauthConfigValue, err := tfconv.ConvertMapToObjectValue(ctx, updatedServer.OAuthConfig)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to Convert OAuth Config",
+				fmt.Sprintf("Unable to convert oauth_config to object value; %v", err),
+			)
+			return
+		}
+		data.OAuthConfig = types.DynamicValue(oauthConfigValue)
+	} else {
+		data.OAuthConfig = types.DynamicNull()
+	}
 
 	// Map associations
 	if updatedServer.AssociatedTools != nil {

@@ -29,17 +29,20 @@ type agentDataSourceModel struct {
 	ID types.String `tfsdk:"id"`
 
 	// Core fields
-	Name            types.String  `tfsdk:"name"`
-	Slug            types.String  `tfsdk:"slug"`
-	Description     types.String  `tfsdk:"description"`
-	EndpointURL     types.String  `tfsdk:"endpoint_url"`
-	AgentType       types.String  `tfsdk:"agent_type"`
-	ProtocolVersion types.String  `tfsdk:"protocol_version"`
-	Capabilities    types.Dynamic `tfsdk:"capabilities"`
-	Config          types.Dynamic `tfsdk:"config"`
-	AuthType        types.String  `tfsdk:"auth_type"`
-	Enabled         types.Bool    `tfsdk:"enabled"`
-	Reachable       types.Bool    `tfsdk:"reachable"`
+	Name                      types.String  `tfsdk:"name"`
+	Slug                      types.String  `tfsdk:"slug"`
+	Description               types.String  `tfsdk:"description"`
+	EndpointURL               types.String  `tfsdk:"endpoint_url"`
+	AgentType                 types.String  `tfsdk:"agent_type"`
+	ProtocolVersion           types.String  `tfsdk:"protocol_version"`
+	Capabilities              types.Dynamic `tfsdk:"capabilities"`
+	Config                    types.Dynamic `tfsdk:"config"`
+	AuthType                  types.String  `tfsdk:"auth_type"`
+	OAuthConfig               types.Dynamic `tfsdk:"oauth_config"`
+	AuthQueryParamKey         types.String  `tfsdk:"auth_query_param_key"`
+	AuthQueryParamValueMasked types.String  `tfsdk:"auth_query_param_value_masked"`
+	Enabled                   types.Bool    `tfsdk:"enabled"`
+	Reachable                 types.Bool    `tfsdk:"reachable"`
 
 	// Nested metrics
 	Metrics types.Object `tfsdk:"metrics"`
@@ -149,6 +152,22 @@ func (d *agentDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 			"auth_type": schema.StringAttribute{
 				MarkdownDescription: "Authentication type",
 				Description:         "Authentication type",
+				Computed:            true,
+			},
+			"oauth_config": schema.DynamicAttribute{
+				MarkdownDescription: "OAuth configuration metadata",
+				Description:         "OAuth configuration metadata",
+				Computed:            true,
+				Sensitive:           true,
+			},
+			"auth_query_param_key": schema.StringAttribute{
+				MarkdownDescription: "Authentication query parameter key",
+				Description:         "Authentication query parameter key",
+				Computed:            true,
+			},
+			"auth_query_param_value_masked": schema.StringAttribute{
+				MarkdownDescription: "Masked authentication query parameter value",
+				Description:         "Masked authentication query parameter value",
 				Computed:            true,
 			},
 			"enabled": schema.BoolAttribute{
@@ -380,6 +399,21 @@ func (d *agentDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	}
 
 	data.AuthType = types.StringPointerValue(agent.AuthType)
+	if agent.OAuthConfig != nil {
+		oauthConfigValue, err := tfconv.ConvertMapToObjectValue(ctx, agent.OAuthConfig)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to Convert OAuth Config",
+				fmt.Sprintf("Unable to convert oauth_config to object value; %v", err),
+			)
+			return
+		}
+		data.OAuthConfig = types.DynamicValue(oauthConfigValue)
+	} else {
+		data.OAuthConfig = types.DynamicNull()
+	}
+	data.AuthQueryParamKey = types.StringPointerValue(agent.AuthQueryParamKey)
+	data.AuthQueryParamValueMasked = types.StringPointerValue(agent.AuthQueryParamValueMasked)
 	data.Enabled = types.BoolValue(agent.Enabled)
 	data.Reachable = types.BoolValue(agent.Reachable)
 

@@ -47,9 +47,9 @@ func (p *ContextForgeProvider) Metadata(ctx context.Context, req provider.Metada
 func (p *ContextForgeProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Terraform provider for IBM ContextForge MCP Gateway management. " +
-			"Manages virtual servers, gateways, tools, resources, and prompts for the ContextForge MCP Gateway service.",
+			"Manages virtual servers, gateways, tools, resources, agents, prompts, and teams for the ContextForge MCP Gateway service.",
 		MarkdownDescription: "Terraform provider for **IBM ContextForge MCP Gateway** gateway management. " +
-			"Manages virtual servers, gateways, tools, resources, and prompts for the ContextForge MCP Gateway service.\n\n" +
+			"Manages virtual servers, gateways, tools, resources, agents, prompts, and teams for the ContextForge MCP Gateway service.\n\n" +
 			"See the [ContextForge MCP Gateway documentation](https://github.com/IBM/mcp-context-forge) for more information.",
 		Attributes: map[string]schema.Attribute{
 			"address": schema.StringAttribute{
@@ -181,8 +181,10 @@ func (p *ContextForgeProvider) Resources(ctx context.Context) []func() resource.
 	return []func() resource.Resource{
 		NewAgentResource,
 		NewGatewayResource,
+		NewPromptResource,
 		NewResourceResource,
 		NewServerResource,
+		NewTeamResource,
 		NewToolResource,
 	}
 }
