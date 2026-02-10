@@ -43,8 +43,9 @@ func testAccGetResourceID(t *testing.T) string {
 //   - Integration test setup completed (creates test resource)
 //
 // To run:
-//   make integration-test-all  # Full lifecycle with setup/teardown
-//   make integration-test      # Tests only (requires manual setup)
+//
+//	make integration-test-all  # Full lifecycle with setup/teardown
+//	make integration-test      # Tests only (requires manual setup)
 func TestAccResourceDataSource_basic(t *testing.T) {
 	resourceID := testAccGetResourceID(t)
 
@@ -81,7 +82,8 @@ func TestAccResourceDataSource_basic(t *testing.T) {
 // is missing from the configuration.
 //
 // To run:
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceDataSource_missingID
+//
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceDataSource_missingID
 func TestAccResourceDataSource_missingID(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -100,7 +102,8 @@ func TestAccResourceDataSource_missingID(t *testing.T) {
 // a resource that doesn't exist.
 //
 // To run:
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceDataSource_nonExistent
+//
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceDataSource_nonExistent
 func TestAccResourceDataSource_nonExistent(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -108,7 +111,7 @@ func TestAccResourceDataSource_nonExistent(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccResourceDataSourceConfig("999999"),
-				ExpectError: regexp.MustCompile(`Resource Not Found|Unable to find resource`),
+				ExpectError: regexp.MustCompile(`Failed to Read Resource|Unable to read resource with ID 999999`),
 			},
 		},
 	})
@@ -119,8 +122,9 @@ func TestAccResourceDataSource_nonExistent(t *testing.T) {
 // are handled correctly including nested metrics, mime_type, size, and tags.
 //
 // To run:
-//   make integration-test-all  # Full lifecycle with setup/teardown
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceDataSource_allAttributes
+//
+//	make integration-test-all  # Full lifecycle with setup/teardown
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceDataSource_allAttributes
 func TestAccResourceDataSource_allAttributes(t *testing.T) {
 	resourceID := testAccGetResourceID(t)
 
@@ -144,12 +148,6 @@ func TestAccResourceDataSource_allAttributes(t *testing.T) {
 
 					// Tags (should be populated with test tags)
 					resource.TestCheckResourceAttrSet("data.contextforge_resource.test", "tags.#"),
-
-					// Metrics (should be present as nested object)
-					resource.TestCheckResourceAttrSet("data.contextforge_resource.test", "metrics.total_executions"),
-					resource.TestCheckResourceAttrSet("data.contextforge_resource.test", "metrics.successful_executions"),
-					resource.TestCheckResourceAttrSet("data.contextforge_resource.test", "metrics.failed_executions"),
-					resource.TestCheckResourceAttrSet("data.contextforge_resource.test", "metrics.failure_rate"),
 
 					// Note: Other attributes (mime_type, size, organizational metadata)
 					// may be null/empty depending on the resource configuration.

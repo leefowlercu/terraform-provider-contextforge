@@ -3,6 +3,10 @@ set -e
 
 echo "🚀 Starting Context Forge test environment..."
 
+# Pinned ContextForge service package for the integration harness.
+# Override by exporting CONTEXTFORGE_GATEWAY_PACKAGE if needed.
+CONTEXTFORGE_GATEWAY_PACKAGE="${CONTEXTFORGE_GATEWAY_PACKAGE:-mcp-contextforge-gateway==1.0.0b2}"
+
 # Get the project root directory (one level up from scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -15,6 +19,7 @@ if ! command -v uvx &> /dev/null; then
 fi
 
 echo "✓ Using uvx ($(uvx --version 2>&1))"
+echo "✓ Using ContextForge package: $CONTEXTFORGE_GATEWAY_PACKAGE"
 
 echo "🔧 Starting Context Forge gateway..."
 
@@ -45,7 +50,7 @@ export JWT_SECRET_KEY="test-secret-key-for-integration-testing"
 export SECURE_COOKIES=false
 
 # Start gateway in background
-uvx --from 'mcp-contextforge-gateway==1.0.0b1' mcpgateway --host 0.0.0.0 --port 8000 > "$PROJECT_ROOT/tmp/contextforge-test.log" 2>&1 &
+uvx --from "$CONTEXTFORGE_GATEWAY_PACKAGE" mcpgateway --host 0.0.0.0 --port 8000 > "$PROJECT_ROOT/tmp/contextforge-test.log" 2>&1 &
 GATEWAY_PID=$!
 echo $GATEWAY_PID > "$PROJECT_ROOT/tmp/contextforge-test.pid"
 
@@ -72,7 +77,7 @@ echo ""
 
 # Generate JWT token for integration tests
 echo "🔑 Generating JWT token for integration tests..."
-uvx --from 'mcp-contextforge-gateway==1.0.0b1' python3 -m mcpgateway.utils.create_jwt_token \
+uvx --from "$CONTEXTFORGE_GATEWAY_PACKAGE" python3 -m mcpgateway.utils.create_jwt_token \
   --username admin@test.local \
   --exp 10080 \
   --secret test-secret-key-for-integration-testing > "$PROJECT_ROOT/tmp/contextforge-test-token.txt" 2>&1
@@ -112,7 +117,7 @@ echo ""
 
 # Start MCP time server for gateway testing
 echo "⏰ Starting MCP time server..."
-uvx --from 'mcp-contextforge-gateway==1.0.0b1' python3 -m mcpgateway.translate \
+uvx --from "$CONTEXTFORGE_GATEWAY_PACKAGE" python3 -m mcpgateway.translate \
   --stdio "uvx mcp-server-time --local-timezone=UTC" \
   --port 8002 > "$PROJECT_ROOT/tmp/time-server.log" 2>&1 &
 TIME_SERVER_PID=$!
@@ -138,14 +143,14 @@ echo ""
 echo "⏰ Starting additional MCP time servers for gateway resource tests..."
 
 # Port 8003 for basic gateway resource test
-uvx --from 'mcp-contextforge-gateway==1.0.0b1' python3 -m mcpgateway.translate \
+uvx --from "$CONTEXTFORGE_GATEWAY_PACKAGE" python3 -m mcpgateway.translate \
   --stdio "uvx mcp-server-time --local-timezone=UTC" \
   --port 8003 > "$PROJECT_ROOT/tmp/time-server-8003.log" 2>&1 &
 TIME_SERVER_8003_PID=$!
 echo $TIME_SERVER_8003_PID > "$PROJECT_ROOT/tmp/time-server-8003.pid"
 
 # Port 8004 for import gateway resource test
-uvx --from 'mcp-contextforge-gateway==1.0.0b1' python3 -m mcpgateway.translate \
+uvx --from "$CONTEXTFORGE_GATEWAY_PACKAGE" python3 -m mcpgateway.translate \
   --stdio "uvx mcp-server-time --local-timezone=UTC" \
   --port 8004 > "$PROJECT_ROOT/tmp/time-server-8004.log" 2>&1 &
 TIME_SERVER_8004_PID=$!

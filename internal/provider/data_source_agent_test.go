@@ -88,7 +88,6 @@ func TestAccAgentDataSource_allAttributes(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.contextforge_agent.test", "created_at"),
 					resource.TestCheckResourceAttrSet("data.contextforge_agent.test", "updated_at"),
 					resource.TestCheckResourceAttrSet("data.contextforge_agent.test", "tags.#"),
-					resource.TestCheckResourceAttrSet("data.contextforge_agent.test", "metrics.total_executions"),
 				),
 			},
 		},

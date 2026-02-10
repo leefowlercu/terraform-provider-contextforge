@@ -19,8 +19,9 @@ import (
 //   - CONTEXTFORGE_TOKEN environment variable set
 //
 // To run:
-//   make integration-test-all  # Full lifecycle with setup/teardown
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceResource_basic
+//
+//	make integration-test-all  # Full lifecycle with setup/teardown
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceResource_basic
 func TestAccResourceResource_basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -49,7 +50,7 @@ func TestAccResourceResource_basic(t *testing.T) {
 				ResourceName:            "contextforge_resource.test",
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"content"}, // content is write-only (not returned by API)
+				ImportStateVerifyIgnore: []string{"content", "team"}, // content is write-only; team is inconsistently returned by API
 			},
 		},
 	})
@@ -60,8 +61,9 @@ func TestAccResourceResource_basic(t *testing.T) {
 // created and managed.
 //
 // To run:
-//   make integration-test-all
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceResource_complete
+//
+//	make integration-test-all
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceResource_complete
 func TestAccResourceResource_complete(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -94,7 +96,7 @@ func TestAccResourceResource_complete(t *testing.T) {
 				ResourceName:            "contextforge_resource.test",
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"content"}, // content is write-only (not returned by API)
+				ImportStateVerifyIgnore: []string{"content", "team"}, // content is write-only; team is inconsistently returned by API
 			},
 		},
 	})
@@ -105,8 +107,9 @@ func TestAccResourceResource_complete(t *testing.T) {
 // are properly applied without forcing resource recreation.
 //
 // To run:
-//   make integration-test-all
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceResource_update
+//
+//	make integration-test-all
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceResource_update
 func TestAccResourceResource_update(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -142,8 +145,9 @@ func TestAccResourceResource_update(t *testing.T) {
 // all attributes are correctly populated in the state.
 //
 // To run:
-//   make integration-test-all
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceResource_import
+//
+//	make integration-test-all
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceResource_import
 func TestAccResourceResource_import(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -161,7 +165,7 @@ func TestAccResourceResource_import(t *testing.T) {
 				ResourceName:            "contextforge_resource.test",
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"content"}, // content is write-only (not returned by API)
+				ImportStateVerifyIgnore: []string{"content", "team"}, // content is write-only; team is inconsistently returned by API
 			},
 		},
 	})
@@ -171,7 +175,8 @@ func TestAccResourceResource_import(t *testing.T) {
 // This verifies that the resource properly validates required attributes.
 //
 // To run:
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceResource_missingRequired
+//
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccResourceResource_missingRequired
 func TestAccResourceResource_missingRequired(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },

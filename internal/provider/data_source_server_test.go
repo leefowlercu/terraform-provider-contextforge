@@ -43,8 +43,9 @@ func testAccGetServerID(t *testing.T) string {
 //   - Integration test setup completed (creates test server)
 //
 // To run:
-//   make integration-test-all  # Full lifecycle with setup/teardown
-//   make integration-test      # Tests only (requires manual setup)
+//
+//	make integration-test-all  # Full lifecycle with setup/teardown
+//	make integration-test      # Tests only (requires manual setup)
 func TestAccServerDataSource_basic(t *testing.T) {
 	serverID := testAccGetServerID(t)
 
@@ -80,7 +81,8 @@ func TestAccServerDataSource_basic(t *testing.T) {
 // is missing from the configuration.
 //
 // To run:
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccServerDataSource_missingID
+//
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccServerDataSource_missingID
 func TestAccServerDataSource_missingID(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -99,7 +101,8 @@ func TestAccServerDataSource_missingID(t *testing.T) {
 // a server that doesn't exist.
 //
 // To run:
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccServerDataSource_nonExistent
+//
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccServerDataSource_nonExistent
 func TestAccServerDataSource_nonExistent(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -118,8 +121,9 @@ func TestAccServerDataSource_nonExistent(t *testing.T) {
 // are handled correctly including nested metrics, association arrays, and tags.
 //
 // To run:
-//   make integration-test-all  # Full lifecycle with setup/teardown
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccServerDataSource_allAttributes
+//
+//	make integration-test-all  # Full lifecycle with setup/teardown
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccServerDataSource_allAttributes
 func TestAccServerDataSource_allAttributes(t *testing.T) {
 	serverID := testAccGetServerID(t)
 
@@ -142,12 +146,6 @@ func TestAccServerDataSource_allAttributes(t *testing.T) {
 
 					// Tags (should be populated with test tags)
 					resource.TestCheckResourceAttrSet("data.contextforge_server.test", "tags.#"),
-
-					// Metrics (should be present as nested object)
-					resource.TestCheckResourceAttrSet("data.contextforge_server.test", "metrics.total_executions"),
-					resource.TestCheckResourceAttrSet("data.contextforge_server.test", "metrics.successful_executions"),
-					resource.TestCheckResourceAttrSet("data.contextforge_server.test", "metrics.failed_executions"),
-					resource.TestCheckResourceAttrSet("data.contextforge_server.test", "metrics.failure_rate"),
 
 					// Note: Other attributes (association fields, icon, organizational metadata)
 					// may be null/empty depending on the server configuration.

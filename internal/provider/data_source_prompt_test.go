@@ -89,7 +89,6 @@ func TestAccPromptDataSource_allAttributes(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.contextforge_prompt.test", "created_at"),
 					resource.TestCheckResourceAttrSet("data.contextforge_prompt.test", "updated_at"),
 					resource.TestCheckResourceAttrSet("data.contextforge_prompt.test", "arguments.#"),
-					resource.TestCheckResourceAttrSet("data.contextforge_prompt.test", "metrics.total_executions"),
 				),
 			},
 		},

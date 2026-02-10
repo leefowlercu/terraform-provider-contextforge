@@ -43,8 +43,9 @@ func testAccGetTeamID(t *testing.T) string {
 //   - Integration test setup completed (creates test team)
 //
 // To run:
-//   make integration-test-all  # Full lifecycle with setup/teardown
-//   make integration-test      # Tests only (requires manual setup)
+//
+//	make integration-test-all  # Full lifecycle with setup/teardown
+//	make integration-test      # Tests only (requires manual setup)
 func TestAccTeamDataSource_basic(t *testing.T) {
 	teamID := testAccGetTeamID(t)
 
@@ -84,7 +85,8 @@ func TestAccTeamDataSource_basic(t *testing.T) {
 // is missing from the configuration.
 //
 // To run:
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccTeamDataSource_missingID
+//
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccTeamDataSource_missingID
 func TestAccTeamDataSource_missingID(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -103,7 +105,8 @@ func TestAccTeamDataSource_missingID(t *testing.T) {
 // a team that doesn't exist.
 //
 // To run:
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccTeamDataSource_nonExistent
+//
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccTeamDataSource_nonExistent
 func TestAccTeamDataSource_nonExistent(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
@@ -111,7 +114,7 @@ func TestAccTeamDataSource_nonExistent(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccTeamDataSourceConfig("non-existent-team-id-12345"),
-				ExpectError: regexp.MustCompile(`Team Not Found|Unable to find team`),
+				ExpectError: regexp.MustCompile(`Failed to Read Team|Unable to read team|Team Not Found|Unable to find team`),
 			},
 		},
 	})
@@ -122,8 +125,9 @@ func TestAccTeamDataSource_nonExistent(t *testing.T) {
 // are handled correctly.
 //
 // To run:
-//   make integration-test-all  # Full lifecycle with setup/teardown
-//   TF_ACC=1 go test -v ./internal/provider/ -run TestAccTeamDataSource_allAttributes
+//
+//	make integration-test-all  # Full lifecycle with setup/teardown
+//	TF_ACC=1 go test -v ./internal/provider/ -run TestAccTeamDataSource_allAttributes
 func TestAccTeamDataSource_allAttributes(t *testing.T) {
 	teamID := testAccGetTeamID(t)
 
