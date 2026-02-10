@@ -31,7 +31,7 @@ builds:
   binary: '{{ .ProjectName }}_v{{ .Version }}'
 archives:
 - files: []
-  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
 checksum:
   extra_files:
     - glob: 'terraform-registry-manifest.json'
