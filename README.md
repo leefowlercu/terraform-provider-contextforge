@@ -6,8 +6,6 @@
 
 Terraform provider for IBM ContextForge MCP Gateway management. Manages virtual servers, gateways, tools, resources, agents, and prompts for the ContextForge MCP Gateway service.
 
-**Current Version**: v0.3.0 ([CHANGELOG.md](CHANGELOG.md))
-
 ## Table of Contents
 
 - [Overview](#overview)
