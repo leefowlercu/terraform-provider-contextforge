@@ -32,6 +32,21 @@ test:
 	@echo "Running unit tests..."
 	go test -v ./...
 
+# Generate Terraform Registry documentation
+docs:
+	@echo "Generating Terraform provider documentation..."
+	go generate ./...
+
+# Verify Terraform Registry documentation is up to date
+docs-check: docs
+	@echo "Verifying generated documentation is up to date..."
+	@if [ -n "$$(git status --porcelain docs)" ]; then \
+		echo "Error: Generated docs are out of date. Run 'make docs' and commit changes in docs/."; \
+		git status --short docs; \
+		git --no-pager diff -- docs; \
+		exit 1; \
+	fi
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning build artifacts..."
@@ -88,7 +103,7 @@ goreleaser-snapshot:
 	goreleaser release --snapshot --clean
 
 # Verify prerequisites before release
-release-check: goreleaser-check
+release-check: goreleaser-check docs-check
 	@echo "Checking git status..."
 	@if ! git diff-index --quiet HEAD --; then \
 		echo "Error: Working directory has uncommitted changes"; \
@@ -155,6 +170,8 @@ help:
 	@echo "  build                    - Build the provider binary"
 	@echo "  install                  - Install the provider locally for manual testing"
 	@echo "  test                     - Run unit tests"
+	@echo "  docs                     - Generate Terraform Registry documentation"
+	@echo "  docs-check               - Verify generated documentation is up to date"
 	@echo "  clean                    - Clean build artifacts"
 	@echo ""
 	@echo "Integration Testing:"
@@ -186,5 +203,5 @@ help:
 	@echo "Other:"
 	@echo "  help                     - Display this help message"
 
-.PHONY: build install test clean integration-test-setup integration-test-teardown integration-test integration-test-all \
+.PHONY: build install test docs docs-check clean integration-test-setup integration-test-teardown integration-test integration-test-all \
         goreleaser-check goreleaser-snapshot release-check release-patch release-minor release-major release-prep release release-dry-run help

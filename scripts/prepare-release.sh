@@ -251,6 +251,14 @@ if ! git diff-index --quiet HEAD -- || ! git diff-index --cached --quiet HEAD --
     exit 1
 fi
 
+# Verify generated provider docs are current before tagging a release.
+echo -e "${YELLOW}Verifying Terraform provider docs are up to date...${NC}"
+if ! make -C "${PROJECT_ROOT}" docs-check; then
+    echo -e "${RED}Error: Provider docs are out of date${NC}"
+    echo "Run 'make docs', commit the docs changes, and rerun release preparation."
+    exit 1
+fi
+
 # Check if tag already exists
 if git rev-parse "$VERSION" >/dev/null 2>&1; then
     echo -e "${RED}Error: Tag ${VERSION} already exists${NC}"
